@@ -43,7 +43,14 @@ export default function Home() {
 
               {data && (
                 <dl className="mt-10 grid grid-cols-4 gap-4 max-w-lg">
-                  <Stat label="Players" value={data.players.players.length} />
+                  <Stat
+                    label="Players"
+                    value={data.players.players.length}
+                    sub={(() => {
+                      const late = data.players.players.filter((p) => p.lateRegistration).length;
+                      return late > 0 ? `${late} late` : null;
+                    })()}
+                  />
                   <Stat label="Matches" value={totalMatches} />
                   <Stat label="Stations" value={data.schedule.settings.stations || 1} />
                   <Stat label="Played" value={`${completed}/${totalMatches}`} />
@@ -141,11 +148,12 @@ export default function Home() {
   );
 }
 
-function Stat({ label, value }) {
+function Stat({ label, value, sub }) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-widest text-ink-500">{label}</dt>
       <dd className="mt-1 text-2xl font-bold text-ink-800">{value}</dd>
+      {sub && <dd className="text-[11px] text-amber-700 font-medium">{sub}</dd>}
     </div>
   );
 }

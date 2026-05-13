@@ -85,6 +85,16 @@ Admin (cookie auth):
 - `POST /api/admin/settings` — full settings object
 - `POST /api/admin/reset` — clears every score & winner
 
+## Roster & late registrations
+
+`data/players.json` is the source of truth for who's registered. Each player carries `id`, `name`, `grade`, `tier`, `parent`, `contact`, and optionally `lateRegistration: true`.
+
+The bracket (`data/bracket.json`) references players by id. Players who registered *after* the bracket was generated stay in the roster with `lateRegistration: true` but aren't seeded into a match — the **Players** page shows them in a separate "Late registrations" section so they don't get forgotten when you decide whether to expand the bracket.
+
+To promote a late registrant into a match, either:
+- swap them into an existing match slot by editing `bracket.json` (`{ "type": "player", "id": "P28" }`), or
+- ask the project to restructure the bracket to fit a larger field.
+
 ## Multi-station scheduling
 
 The tournament runs on `settings.stations` PlayStations in parallel (default 3). The scheduler is dependency-aware: it iterates matches in their declared order (M1 first, M14 later) and assigns each one to whichever station frees up first, but **never starts a match before both of its predecessor matches have finished**.
