@@ -13,6 +13,8 @@
     "preview": "vite build && node server.js"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^1.1.4",
+    "@xyflow/react": "^12.4.4",
     "cookie-parser": "^1.4.6",
     "express": "^4.19.2"
   },
