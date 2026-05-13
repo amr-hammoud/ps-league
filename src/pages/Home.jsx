@@ -199,7 +199,9 @@ function TierCard({ title, count, advances, stages, accent }) {
 
 function getChampion(bracket) {
   if (!bracket) return null;
-  const grandFinal = bracket.matches.find((m) => m.id === 'M26');
+  // Identify the Grand Final by stage, not a hardcoded id — the id shifts
+  // whenever the bracket is rebuilt or late-arrival play-ins are spliced in.
+  const grandFinal = bracket.matches.find((m) => m.stage === 'Final');
   if (!grandFinal || !grandFinal.winner) return null;
   return grandFinal.resolvedA?.id === grandFinal.winner
     ? grandFinal.resolvedA

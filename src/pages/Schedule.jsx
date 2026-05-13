@@ -43,9 +43,9 @@ export default function Schedule() {
 
   const s = data.settings;
   const mainRows = data.rows
-    .filter((m) => m.id !== 'M26')
+    .filter((m) => m.stage !== 'Final')
     .filter((m) => stationFilter === 'all' || m.station === Number(stationFilter));
-  const grandFinal = data.rows.find((m) => m.id === 'M26');
+  const grandFinal = data.rows.find((m) => m.stage === 'Final');
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
@@ -91,7 +91,7 @@ export default function Schedule() {
       {view === 'byTime' ? (
         <ByTime mainRows={mainRows} grandFinal={grandFinal} />
       ) : (
-        <ByStation rows={data.rows.filter((m) => m.id !== 'M26')} stations={stations} grandFinal={grandFinal} />
+        <ByStation rows={data.rows.filter((m) => m.stage !== 'Final')} stations={stations} grandFinal={grandFinal} />
       )}
     </div>
   );
