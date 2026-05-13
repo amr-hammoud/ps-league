@@ -1,0 +1,15 @@
+node_modules
+dist
+.DS_Store
+*.log
+data/.*.tmp
+__push.ps1
+push.log
+push.err
+__install.cmd
+install.log
+install.err
+__push.ps1
+__push.cmd
+push.log
+push.err

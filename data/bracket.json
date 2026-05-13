@@ -1,0 +1,37 @@
+{
+  "matches": [
+    { "id": "M1",  "stage": "Tier 1", "round": "R16-1", "playerA": { "type": "player", "id": "P08" }, "playerB": { "type": "player", "id": "P13" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G4–G5" },
+    { "id": "M2",  "stage": "Tier 1", "round": "R16-2", "playerA": { "type": "player", "id": "P07" }, "playerB": { "type": "player", "id": "P11" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G4–G5" },
+    { "id": "M3",  "stage": "Tier 1", "round": "R16-3", "playerA": { "type": "player", "id": "P05" }, "playerB": { "type": "player", "id": "P10" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G4–G5" },
+    { "id": "M4",  "stage": "Tier 1", "round": "R16-4", "playerA": { "type": "player", "id": "P04" }, "playerB": { "type": "player", "id": "P14" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G4–G5" },
+    { "id": "M5",  "stage": "Tier 1", "round": "R16-5", "playerA": { "type": "player", "id": "P01" }, "playerB": { "type": "player", "id": "P15" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G4–G5" },
+    { "id": "M6",  "stage": "Tier 1", "round": "R16-6", "playerA": { "type": "player", "id": "P09" }, "playerB": { "type": "player", "id": "P12" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G4–G5" },
+    { "id": "M7",  "stage": "Tier 1", "round": "R16-7", "playerA": { "type": "player", "id": "P06" }, "playerB": { "type": "player", "id": "P16" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G4–G5" },
+    { "id": "M8",  "stage": "Tier 1", "round": "R16-8", "playerA": { "type": "player", "id": "P03" }, "playerB": { "type": "player", "id": "P02" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G4–G5" },
+
+    { "id": "M9",  "stage": "Tier 2", "round": "R8-1",  "playerA": { "type": "player", "id": "P23" }, "playerB": { "type": "player", "id": "P24" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G6–G8" },
+    { "id": "M10", "stage": "Tier 2", "round": "R8-2",  "playerA": { "type": "player", "id": "P18" }, "playerB": { "type": "player", "id": "P22" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G6–G8" },
+    { "id": "M11", "stage": "Tier 2", "round": "R8-3",  "playerA": { "type": "player", "id": "P21" }, "playerB": { "type": "player", "id": "P17" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G6–G8" },
+    { "id": "M12", "stage": "Tier 2", "round": "R8-4",  "playerA": { "type": "player", "id": "P20" }, "playerB": { "type": "player", "id": "P19" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G6–G8" },
+
+    { "id": "M13", "stage": "Tier 3", "round": "Prelim", "playerA": { "type": "player", "id": "P26" }, "playerB": { "type": "player", "id": "P25" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G9–G11" },
+
+    { "id": "M14", "stage": "Tier 1", "round": "QF-T1-1", "playerA": { "type": "winner", "id": "M1" }, "playerB": { "type": "winner", "id": "M2" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G4–G5" },
+    { "id": "M15", "stage": "Tier 1", "round": "QF-T1-2", "playerA": { "type": "winner", "id": "M3" }, "playerB": { "type": "winner", "id": "M4" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G4–G5" },
+    { "id": "M16", "stage": "Tier 1", "round": "QF-T1-3", "playerA": { "type": "winner", "id": "M5" }, "playerB": { "type": "winner", "id": "M6" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G4–G5" },
+    { "id": "M17", "stage": "Tier 1", "round": "QF-T1-4", "playerA": { "type": "winner", "id": "M7" }, "playerB": { "type": "winner", "id": "M8" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G4–G5" },
+
+    { "id": "M18", "stage": "Tier 2", "round": "SF-T2-1", "playerA": { "type": "winner", "id": "M9"  }, "playerB": { "type": "winner", "id": "M10" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G6–G8" },
+    { "id": "M19", "stage": "Tier 2", "round": "SF-T2-2", "playerA": { "type": "winner", "id": "M11" }, "playerB": { "type": "winner", "id": "M12" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Same-tier: G6–G8" },
+
+    { "id": "M20", "stage": "Mixed", "round": "MQF-1", "playerA": { "type": "winner", "id": "M14" }, "playerB": { "type": "winner", "id": "M13" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Mixed grades" },
+    { "id": "M21", "stage": "Mixed", "round": "MQF-2", "playerA": { "type": "winner", "id": "M15" }, "playerB": { "type": "winner", "id": "M18" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Mixed grades" },
+    { "id": "M22", "stage": "Mixed", "round": "MQF-3", "playerA": { "type": "winner", "id": "M16" }, "playerB": { "type": "winner", "id": "M19" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Mixed grades" },
+    { "id": "M23", "stage": "Mixed", "round": "MQF-4", "playerA": { "type": "winner", "id": "M17" }, "playerB": { "type": "player", "id": "P27" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "T3 BYE: P27 advances directly" },
+
+    { "id": "M24", "stage": "Mixed", "round": "MSF-1", "playerA": { "type": "winner", "id": "M20" }, "playerB": { "type": "winner", "id": "M21" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Mixed grades" },
+    { "id": "M25", "stage": "Mixed", "round": "MSF-2", "playerA": { "type": "winner", "id": "M22" }, "playerB": { "type": "winner", "id": "M23" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Mixed grades" },
+
+    { "id": "M26", "stage": "Final", "round": "GRAND FINAL", "playerA": { "type": "winner", "id": "M24" }, "playerB": { "type": "winner", "id": "M25" }, "scoreA": null, "scoreB": null, "winner": null, "notes": "Auditorium — separate venue & time" }
+  ]
+}

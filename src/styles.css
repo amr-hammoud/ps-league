@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    background: #F7F7F8;
+    color: #262626;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Sora', 'Inter', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl bg-white border border-ink-100 shadow-soft;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-medium transition;
+  }
+  .btn-primary {
+    @apply btn bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-500/15;
+  }
+  .btn-ghost {
+    @apply btn text-ink-700 hover:bg-ink-100;
+  }
+  .btn-outline {
+    @apply btn border border-ink-200 text-ink-700 hover:bg-ink-50;
+  }
+  .input {
+    @apply w-full rounded-xl border border-ink-200 bg-white px-3 py-2 text-ink-800 placeholder-ink-400 focus:outline-none focus:ring-4 focus:ring-brand-500/15 focus:border-brand-500;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-500;
+  }
+  .nav-link {
+    @apply px-3 py-2 rounded-lg text-sm font-medium text-ink-600 hover:text-brand-600 hover:bg-brand-50 transition;
+  }
+  .nav-link-active {
+    @apply text-brand-600 bg-brand-50;
+  }
+}
+
+/* Bracket connector lines */
+.bracket-rail {
+  position: relative;
+}
+.bracket-rail::before {
+  content: '';
+  position: absolute;
+  left: -1.25rem;
+  top: 50%;
+  width: 1.25rem;
+  height: 1px;
+  background: #D8D9DC;
+}
+
+/* Subtle pattern for hero */
+.hero-pattern {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(157, 54, 137, 0.08) 1px, transparent 0);
+  background-size: 24px 24px;
+}

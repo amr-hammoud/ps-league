@@ -1,0 +1,39 @@
+{
+  "tournament": "PS League — FC26",
+  "game": "EA Sports FC26",
+  "format": "Single Elimination — Best of 1",
+  "tiers": [
+    { "id": "T1", "label": "Tier 1 (G4–G5)", "advance": "4 advance via R16 + QF" },
+    { "id": "T2", "label": "Tier 2 (G6–G8)", "advance": "2 advance via R8 + SF" },
+    { "id": "T3", "label": "Tier 3 (G9–G11)", "advance": "2 advance (Prelim + 1 bye)" }
+  ],
+  "players": [
+    { "id": "P01", "name": "Adel Baamer", "grade": "G4", "tier": "T1" },
+    { "id": "P02", "name": "Amr Ahmed Alshreef", "grade": "G4", "tier": "T1" },
+    { "id": "P03", "name": "Eyad Hany Baajer", "grade": "G4", "tier": "T1" },
+    { "id": "P04", "name": "Majd Khalid Alharbi", "grade": "G4", "tier": "T1" },
+    { "id": "P05", "name": "Mansour Meer", "grade": "G4", "tier": "T1" },
+    { "id": "P06", "name": "Mohammed Abdulhadi Alshehri", "grade": "G4", "tier": "T1" },
+    { "id": "P07", "name": "Rawad Radwan Samnoudi", "grade": "G4", "tier": "T1" },
+    { "id": "P08", "name": "Saad Ghassan Sindi", "grade": "G4", "tier": "T1" },
+    { "id": "P09", "name": "Ziad Nasser", "grade": "G4", "tier": "T1" },
+    { "id": "P10", "name": "Abdulrahman Mufti", "grade": "G5", "tier": "T1" },
+    { "id": "P11", "name": "Alqasim Ameen", "grade": "G5", "tier": "T1" },
+    { "id": "P12", "name": "Ismael Kanwal", "grade": "G5", "tier": "T1" },
+    { "id": "P13", "name": "Jad Majid", "grade": "G5", "tier": "T1" },
+    { "id": "P14", "name": "Saad Saed", "grade": "G5", "tier": "T1" },
+    { "id": "P15", "name": "Suliman Alshammari", "grade": "G5", "tier": "T1" },
+    { "id": "P16", "name": "Turki Hamad Alquraishah", "grade": "G5", "tier": "T1" },
+    { "id": "P17", "name": "Elyas Suliman Ezayah", "grade": "G6", "tier": "T2" },
+    { "id": "P18", "name": "Majid Assiri", "grade": "G6", "tier": "T2" },
+    { "id": "P19", "name": "Tamim Hamad Alquraishah", "grade": "G6", "tier": "T2" },
+    { "id": "P20", "name": "Yousef Jokhdar", "grade": "G6", "tier": "T2" },
+    { "id": "P21", "name": "Yousef Khalid Alharbi", "grade": "G6", "tier": "T2" },
+    { "id": "P22", "name": "Abdullah Walid Alhaddad", "grade": "G7", "tier": "T2" },
+    { "id": "P23", "name": "Mohammed Assiri", "grade": "G7", "tier": "T2" },
+    { "id": "P24", "name": "Hussein Mohammed Sobhi", "grade": "G8", "tier": "T2" },
+    { "id": "P25", "name": "Feras Elattal", "grade": "G9", "tier": "T3" },
+    { "id": "P26", "name": "Mahmoud Sameh", "grade": "G9", "tier": "T3" },
+    { "id": "P27", "name": "Mohammad Hamad Alquraishah", "grade": "G10", "tier": "T3" }
+  ]
+}
