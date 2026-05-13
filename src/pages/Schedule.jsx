@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
+import { useFreshness, RefreshBanner } from '../lib/freshness.jsx';
 import {
   formatTime12,
   stageColor,
@@ -16,10 +17,19 @@ export default function Schedule() {
   const [err, setErr] = useState(null);
   const [view, setView] = useState('byTime'); // 'byTime' | 'byStation'
   const [stationFilter, setStationFilter] = useState('all');
+  const { isStale, markLoaded } = useFreshness('schedule');
 
-  useEffect(() => {
-    api.schedule().then(setData).catch((e) => setErr(e.message));
-  }, []);
+  const fetchData = useCallback(async () => {
+    try {
+      const d = await api.schedule();
+      setData(d);
+      markLoaded(d._version || null);
+    } catch (e) {
+      setErr(e.message);
+    }
+  }, [markLoaded]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const stations = useMemo(() => {
     if (!data) return [];
@@ -39,6 +49,7 @@ export default function Schedule() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
+      {isStale && <RefreshBanner onRefresh={fetchData} />}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold text-ink-900">Schedule</h1>

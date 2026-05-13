@@ -85,6 +85,18 @@ Admin (cookie auth):
 - `POST /api/admin/settings` — full settings object
 - `POST /api/admin/reset` — clears every score & winner
 
+## Live updates between admins
+
+Two admins editing simultaneously is fine — they don't need to coordinate manually. Every page (Home, Bracket, Schedule, Players, Admin) polls `/api/version` every 6 seconds and shows a sticky **"New tournament data available — Refresh now"** banner whenever the server has data newer than what the page loaded.
+
+How it works:
+
+- Server: data "version" is just the file `mtimeMs` of each JSON file. The `/api/version` endpoint returns versions for `bracket`, `players`, `settings`, and a combined `schedule` (max of all). Every public GET response carries an `X-Version` header so the client knows exactly which version it received.
+- Client: `FreshnessProvider` polls `/api/version` every 6 s (also on tab focus). The `useFreshness('schedule')` hook compares the polled server version to the version this page last loaded. When the server is ahead, the banner appears.
+- Your own admin saves never flash the banner for you — after each save the page reloads data and calls `markLoaded` with the new version, suppressing the banner for your own write.
+
+This is polling, not WebSockets — it costs ~50 bytes of HTTP every 6 seconds per open tab, which is fine on shared hosting and works behind any proxy.
+
 ## Adding late registrations on tournament day
 
 The Admin panel has a **Roster** tab. From there:

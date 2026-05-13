@@ -5,6 +5,7 @@ async function request(path, options = {}) {
   const res = await fetch(path, {
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
     ...options,
   });
   const text = await res.text();
@@ -13,6 +14,12 @@ async function request(path, options = {}) {
     const err = new Error((data && data.error) || res.statusText);
     err.status = res.status;
     throw err;
+  }
+  // The server stamps GET responses with X-Version (file mtime). Attach it to
+  // the parsed body so pages can pass it to useFreshness().
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const v = res.headers.get('X-Version');
+    if (v) data._version = Number(v);
   }
   return data;
 }

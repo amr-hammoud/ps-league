@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
+import { useFreshness, RefreshBanner } from '../lib/freshness.jsx';
 import { formatTime12, stageColor, MATCH_STATUSES, statusLabel, statusBadgeClass, shouldShowStatus } from '../lib/format.js';
 
 export default function Admin() {
@@ -69,15 +70,20 @@ function Dashboard({ onLogout }) {
   const [settings, setSettings] = useState(null);
   const [players, setPlayers] = useState(null);
   const [toast, setToast] = useState(null);
+  const { isStale, markLoaded } = useFreshness('schedule');
 
-  const reload = async () => {
+  // reload() runs both after a save (so the admin sees fresh data and the
+  // freshness banner stays hidden for their own change) and when they click
+  // "Refresh now" in response to another admin's edit.
+  const reload = useCallback(async () => {
     const [b, s, p] = await Promise.all([api.bracket(), api.settings(), api.players()]);
     setBracket(b);
     setSettings(s);
     setPlayers(p);
-  };
+    markLoaded(Math.max(b._version || 0, s._version || 0, p._version || 0) || null);
+  }, [markLoaded]);
 
-  useEffect(() => { reload(); }, []);
+  useEffect(() => { reload(); }, [reload]);
 
   const flash = (msg) => {
     setToast(msg);
@@ -94,6 +100,7 @@ function Dashboard({ onLogout }) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
+      {isStale && <RefreshBanner onRefresh={reload} label="The other admin made changes" />}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold text-ink-900">Admin</h1>

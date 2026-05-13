@@ -11,6 +11,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { api } from '../lib/api.js';
+import { useFreshness, RefreshBanner } from '../lib/freshness.jsx';
 import {
   stageColor,
   statusLabel,
@@ -152,12 +153,20 @@ export default function Bracket() {
   const [stationFilter, setStationFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selectedMatchId, setSelectedMatchId] = useState(null);
+  const { isStale, markLoaded } = useFreshness('schedule');
 
-  useEffect(() => {
-    Promise.all([api.bracket(), api.schedule()])
-      .then(([b, s]) => { setBracket(b); setSchedule(s); })
-      .catch((e) => setErr(e.message));
-  }, []);
+  const fetchAll = useCallback(async () => {
+    try {
+      const [b, s] = await Promise.all([api.bracket(), api.schedule()]);
+      setBracket(b);
+      setSchedule(s);
+      markLoaded(Math.max(b._version || 0, s._version || 0) || null);
+    } catch (e) {
+      setErr(e.message);
+    }
+  }, [markLoaded]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const scheduleByMatch = useMemo(() => {
     const idx = {};
@@ -297,6 +306,7 @@ export default function Bracket() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
+      {isStale && <RefreshBanner onRefresh={fetchAll} />}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold text-ink-900">Bracket</h1>

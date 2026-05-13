@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
+import { useFreshness, RefreshBanner } from '../lib/freshness.jsx';
 import { tierLabel } from '../lib/format.js';
 
 export default function Players() {
@@ -8,12 +9,20 @@ export default function Players() {
   const [err, setErr] = useState(null);
   const [q, setQ] = useState('');
   const [tier, setTier] = useState('all');
+  const { isStale, markLoaded } = useFreshness('schedule');
 
-  useEffect(() => {
-    Promise.all([api.players(), api.bracket()])
-      .then(([p, b]) => { setData(p); setBracket(b); })
-      .catch((e) => setErr(e.message));
-  }, []);
+  const fetchAll = useCallback(async () => {
+    try {
+      const [p, b] = await Promise.all([api.players(), api.bracket()]);
+      setData(p);
+      setBracket(b);
+      markLoaded(Math.max(p._version || 0, b._version || 0) || null);
+    } catch (e) {
+      setErr(e.message);
+    }
+  }, [markLoaded]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // Find each player's current furthest round
   const status = useMemo(() => {
@@ -64,6 +73,7 @@ export default function Players() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
+      {isStale && <RefreshBanner onRefresh={fetchAll} />}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold text-ink-900">Players</h1>

@@ -1,17 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
+import { useFreshness, RefreshBanner } from '../lib/freshness.jsx';
 import { formatTime12 } from '../lib/format.js';
 
 export default function Home() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
+  const { isStale, markLoaded } = useFreshness('schedule');
 
-  useEffect(() => {
-    Promise.all([api.players(), api.schedule(), api.bracket()])
-      .then(([p, s, b]) => setData({ players: p, schedule: s, bracket: b }))
-      .catch((e) => setErr(e.message));
-  }, []);
+  const fetchAll = useCallback(async () => {
+    try {
+      const [p, s, b] = await Promise.all([api.players(), api.schedule(), api.bracket()]);
+      setData({ players: p, schedule: s, bracket: b });
+      markLoaded(Math.max(p._version || 0, s._version || 0, b._version || 0) || null);
+    } catch (e) {
+      setErr(e.message);
+    }
+  }, [markLoaded]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const champion = data && getChampion(data.bracket);
   const nextMatch = data && getNextMatch(data.schedule.rows);
@@ -20,6 +28,11 @@ export default function Home() {
 
   return (
     <div>
+      {isStale && (
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-4">
+          <RefreshBanner onRefresh={fetchAll} />
+        </div>
+      )}
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="hero-pattern absolute inset-0 opacity-60" aria-hidden />

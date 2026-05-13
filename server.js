@@ -39,6 +39,39 @@ async function readJSON(name) {
   return JSON.parse(raw);
 }
 
+// Data "version" is just the file's mtime. Cheap, accurate, no state to keep.
+async function getAllVersions() {
+  const [b, p, s] = await Promise.all([
+    fs.stat(path.join(DATA_DIR, 'bracket.json')),
+    fs.stat(path.join(DATA_DIR, 'players.json')),
+    fs.stat(path.join(DATA_DIR, 'settings.json')),
+  ]);
+  const bracket = Math.floor(b.mtimeMs);
+  const players = Math.floor(p.mtimeMs);
+  const settings = Math.floor(s.mtimeMs);
+  return {
+    bracket,
+    players,
+    settings,
+    // schedule depends on all three so it acts as the universal version
+    schedule: Math.max(bracket, players, settings),
+  };
+}
+
+// Stamp every public GET response with the universal version. The client uses
+// this to know exactly what it just received and decide if a later poll says
+// "newer data exists, please refresh".
+async function withVersion(req, res, next) {
+  if (req.method !== 'GET') return next();
+  if (req.path === '/api/version') return next();
+  try {
+    const v = await getAllVersions();
+    res.set('X-Version', String(v.schedule));
+    res.set('Cache-Control', 'no-store');
+  } catch (_e) { /* non-fatal */ }
+  next();
+}
+
 async function writeJSON(name, value) {
   const tmp = path.join(DATA_DIR, `.${name}.tmp`);
   const final = path.join(DATA_DIR, name);
@@ -256,6 +289,17 @@ function buildSchedule(bracket, settings) {
 const app = express();
 app.use(express.json({ limit: '256kb' }));
 app.use(cookieParser());
+app.use(withVersion);
+
+// Light-weight version probe. Spectators and admins poll this every few
+// seconds to know whether anything they're looking at has gone stale.
+app.get('/api/version', async (_req, res) => {
+  try {
+    res.json(await getAllVersions());
+  } catch (_e) {
+    res.status(500).json({ error: 'version check failed' });
+  }
+});
 
 // Public reads
 app.get('/api/players', async (_req, res) => {
