@@ -142,9 +142,11 @@ function TabButton({ active, onClick, children }) {
 
 function MatchEditor({ bracket, onChange, flash }) {
   const groups = [
+    { label: 'Tier 1 — Play-ins',      rounds: /^PI-T1-/ },
+    { label: 'Tier 2 — Play-ins',      rounds: /^PI-T2-/ },
+    { label: 'Tier 3 — Semifinals',    rounds: /^SF-T3-/ },
     { label: 'Tier 1 — R16',           rounds: /^R16-/ },
-    { label: 'Tier 2 — R8',            rounds: /^R8-/ },
-    { label: 'Tier 3 — Prelim',        rounds: /^Prelim$/ },
+    { label: 'Tier 2 — Quarterfinals', rounds: /^QF-T2-/ },
     { label: 'Tier 1 — Quarterfinals', rounds: /^QF-T1-/ },
     { label: 'Tier 2 — Semifinals',    rounds: /^SF-T2-/ },
     { label: 'Mixed — Quarterfinals',  rounds: /^MQF-/ },

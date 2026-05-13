@@ -161,7 +161,9 @@ function buildSchedule(bracket, settings) {
   const rows = [];
 
   for (const m of bracket.matches) {
-    if (m.id === 'M26') {
+    // The Grand Final runs in the auditorium at a fixed wall time, so it doesn't
+    // get assigned to a station and ignores the chained slot calculation.
+    if (m.stage === 'Final') {
       const start = grandFinalStart;
       const end = minutesToHHMM(toMinutes(start) + matchDurationMin);
       rows.push({ ...m, start, end, station: null });

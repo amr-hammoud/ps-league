@@ -85,15 +85,31 @@ Admin (cookie auth):
 - `POST /api/admin/settings` — full settings object
 - `POST /api/admin/reset` — clears every score & winner
 
-## Roster & late registrations
+## Roster
 
-`data/players.json` is the source of truth for who's registered. Each player carries `id`, `name`, `grade`, `tier`, `parent`, `contact`, and optionally `lateRegistration: true`.
+`data/players.json` is the source of truth. Each player carries `id`, `name`, `grade`, `tier`, `parent`, and `contact`. The bracket references players by id.
 
-The bracket (`data/bracket.json`) references players by id. Players who registered *after* the bracket was generated stay in the roster with `lateRegistration: true` but aren't seeded into a match — the **Players** page shows them in a separate "Late registrations" section so they don't get forgotten when you decide whether to expand the bracket.
+## Tournament structure (33 players, 32 matches, ≤90 min)
 
-To promote a late registrant into a match, either:
-- swap them into an existing match slot by editing `bracket.json` (`{ "type": "player", "id": "P28" }`), or
-- ask the project to restructure the bracket to fit a larger field.
+The bracket is a tier-qualifying tournament feeding a Mixed knockout:
+
+| Block | # matches | Purpose |
+| --- | --- | --- |
+| **Tier 1 — Play-ins** (G4–G5) | 2 | Cuts 18 T1 players down to 16 |
+| **Tier 2 — Play-ins** (G6–G8) | 3 | Cuts 11 T2 players down to 8 |
+| **Tier 3 — Semifinals** (G9–G11) | 2 | 4 T3 players play; 2 advance |
+| **Tier 1 — R16** | 8 | 16 → 8 |
+| **Tier 2 — Quarterfinals** | 4 | 8 → 4 |
+| **Tier 1 — Quarterfinals** | 4 | 8 → 4 |
+| **Tier 2 — Semifinals** | 2 | 4 → 2 |
+| **Mixed — Quarterfinals** | 4 | 4 T1 + 2 T2 + 2 T3 = 8 → 4 |
+| **Mixed — Semifinals** | 2 | 4 → 2 |
+| **Grand Final** | 1 | Auditorium, separate time |
+| **Total** | **32** | |
+
+With the default settings (6-min matches, 1-min buffer, 3 stations, start 12:00), the schedule lands the last station match at **13:16** and the Grand Final at **13:20 → 13:26**. Total wall time: ≈86 minutes.
+
+If you want to be more conservative, bump `bufferMin` to `2` in admin settings — the schedule recomputes instantly and the whole event lands closer to ~1h35m.
 
 ## Multi-station scheduling
 

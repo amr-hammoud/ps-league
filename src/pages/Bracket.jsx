@@ -26,17 +26,20 @@ export default function Bracket() {
   if (!bracket) return <Centered>Loading bracket…</Centered>;
 
   const matches = bracket.matches;
+  // Columns mirror the tournament depth: each one is a round that can start
+  // only after the previous column's matches are decided. Grouping by depth
+  // (rather than purely by stage) makes the parallel-vs-blocking flow clear.
   const columns = [
-    { label: 'Tier 1 · R16',       items: matches.filter((m) => /^R16-/.test(m.round)) },
-    { label: 'Tier 2 · R8 / Tier 3 · Prelim', items: matches.filter((m) => /^R8-|^Prelim$/.test(m.round)) },
-    { label: 'Tier QF / SF',       items: matches.filter((m) => /^QF-T1-|^SF-T2-/.test(m.round)) },
-    { label: 'Mixed QF',           items: matches.filter((m) => /^MQF-/.test(m.round)) },
-    { label: 'Mixed SF',           items: matches.filter((m) => /^MSF-/.test(m.round)) },
-    { label: 'Grand Final',        items: matches.filter((m) => m.round === 'GRAND FINAL') },
+    { label: 'Play-ins & T3 SF',         items: matches.filter((m) => /^PI-/.test(m.round) || /^SF-T3-/.test(m.round)) },
+    { label: 'Tier 1 R16 / Tier 2 QF',   items: matches.filter((m) => /^R16-/.test(m.round) || /^QF-T2-/.test(m.round)) },
+    { label: 'Tier 1 QF / Tier 2 SF',    items: matches.filter((m) => /^QF-T1-/.test(m.round) || /^SF-T2-/.test(m.round)) },
+    { label: 'Mixed QF',                 items: matches.filter((m) => /^MQF-/.test(m.round)) },
+    { label: 'Mixed SF',                 items: matches.filter((m) => /^MSF-/.test(m.round)) },
+    { label: 'Grand Final',              items: matches.filter((m) => m.round === 'GRAND FINAL') },
   ];
 
   const champion = (() => {
-    const gf = matches.find((m) => m.id === 'M26');
+    const gf = matches.find((m) => m.stage === 'Final');
     if (!gf || !gf.winner) return null;
     return gf.resolvedA?.id === gf.winner ? gf.resolvedA : gf.resolvedB;
   })();

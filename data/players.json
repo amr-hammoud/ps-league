@@ -3,9 +3,9 @@
   "game": "EA Sports FC26",
   "format": "Single Elimination — Best of 1",
   "tiers": [
-    { "id": "T1", "label": "Tier 1 (G4–G5)", "advance": "4 advance via R16 + QF" },
-    { "id": "T2", "label": "Tier 2 (G6–G8)", "advance": "2 advance via R8 + SF" },
-    { "id": "T3", "label": "Tier 3 (G9–G11)", "advance": "2 advance (Prelim + 1 bye)" }
+    { "id": "T1", "label": "Tier 1 (G4–G5)", "advance": "18 players → 4 advance (Play-ins + R16 + QF)" },
+    { "id": "T2", "label": "Tier 2 (G6–G8)", "advance": "11 players → 2 advance (Play-ins + QF + SF)" },
+    { "id": "T3", "label": "Tier 3 (G9–G11)", "advance": "4 players → 2 advance (Semifinals)" }
   ],
   "players": [
     { "id": "P01", "name": "Adel Baamer",                 "grade": "G4",  "tier": "T1", "parent": "Hatan Abdul Jaleel Baamer",       "contact": "0549003900" },
@@ -36,11 +36,11 @@
     { "id": "P26", "name": "Mahmoud Sameh",               "grade": "G9",  "tier": "T3", "parent": "Sameh Mahmoud Abdelrahman",       "contact": "0544726172" },
     { "id": "P27", "name": "Mohammad Hamad Alquraishah",  "grade": "G10", "tier": "T3", "parent": "Hamad Mohammed Alquraishah",      "contact": "0555399994" },
 
-    { "id": "P28", "name": "Saad Hilal Alotaibi",         "grade": "G4",  "tier": "T1", "parent": "Randa Twati",                     "contact": "0534159884", "lateRegistration": true },
-    { "id": "P29", "name": "Amer Ammar Hafez",            "grade": "G5",  "tier": "T1", "parent": "Anar Issam Hafez",                "contact": "0561710800", "lateRegistration": true },
-    { "id": "P30", "name": "Mazen Raad",                  "grade": "G6",  "tier": "T2", "parent": "Mohammed Raad",                   "contact": "0570343575", "lateRegistration": true },
-    { "id": "P31", "name": "Faisal Alabdulli",            "grade": "G7",  "tier": "T2", "parent": "Fahd Ali Alabdulli",              "contact": "0544466994", "lateRegistration": true },
-    { "id": "P32", "name": "Abdulaziz Mohammed bin Hashr","grade": "G7",  "tier": "T2", "parent": "Mohammed Naser bin Hashr",        "contact": "0566830570", "lateRegistration": true },
-    { "id": "P33", "name": "Anwar Atiyah Shawk",          "grade": "G9",  "tier": "T3", "parent": "Atiyah Shawk",                    "contact": "0506614630", "lateRegistration": true }
+    { "id": "P28", "name": "Saad Hilal Alotaibi",         "grade": "G4",  "tier": "T1", "parent": "Randa Twati",                     "contact": "0534159884" },
+    { "id": "P29", "name": "Amer Ammar Hafez",            "grade": "G5",  "tier": "T1", "parent": "Anar Issam Hafez",                "contact": "0561710800" },
+    { "id": "P30", "name": "Mazen Raad",                  "grade": "G6",  "tier": "T2", "parent": "Mohammed Raad",                   "contact": "0570343575" },
+    { "id": "P31", "name": "Faisal Alabdulli",            "grade": "G7",  "tier": "T2", "parent": "Fahd Ali Alabdulli",              "contact": "0544466994" },
+    { "id": "P32", "name": "Abdulaziz Mohammed bin Hashr","grade": "G7",  "tier": "T2", "parent": "Mohammed Naser bin Hashr",        "contact": "0566830570" },
+    { "id": "P33", "name": "Anwar Atiyah Shawk",          "grade": "G9",  "tier": "T3", "parent": "Atiyah Shawk",                    "contact": "0506614630" }
   ]
 }

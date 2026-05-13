@@ -1,8 +1,8 @@
 {
   "startTime": "12:00",
   "matchDurationMin": 6,
-  "bufferMin": 2,
-  "grandFinalStart": "13:00",
+  "bufferMin": 1,
+  "grandFinalStart": "13:20",
   "tournamentDate": "2026-05-14",
   "venue": "PS Arena — NASA International Schools",
   "grandFinalVenue": "Auditorium",
