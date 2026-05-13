@@ -67,12 +67,14 @@ function Dashboard({ onLogout }) {
   const [tab, setTab] = useState('matches');
   const [bracket, setBracket] = useState(null);
   const [settings, setSettings] = useState(null);
+  const [players, setPlayers] = useState(null);
   const [toast, setToast] = useState(null);
 
   const reload = async () => {
-    const [b, s] = await Promise.all([api.bracket(), api.settings()]);
+    const [b, s, p] = await Promise.all([api.bracket(), api.settings(), api.players()]);
     setBracket(b);
     setSettings(s);
+    setPlayers(p);
   };
 
   useEffect(() => { reload(); }, []);
@@ -105,12 +107,23 @@ function Dashboard({ onLogout }) {
 
       <div className="mt-6 flex gap-1 border-b border-ink-100">
         <TabButton active={tab === 'matches'} onClick={() => setTab('matches')}>Matches</TabButton>
+        <TabButton active={tab === 'roster'} onClick={() => setTab('roster')}>
+          Roster
+          {players && players.players.some((p) => p.pending) && (
+            <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
+              {players.players.filter((p) => p.pending).length}
+            </span>
+          )}
+        </TabButton>
         <TabButton active={tab === 'settings'} onClick={() => setTab('settings')}>Schedule Settings</TabButton>
       </div>
 
       <div className="mt-6">
         {tab === 'matches' && bracket && (
           <MatchEditor bracket={bracket} onChange={reload} flash={flash} />
+        )}
+        {tab === 'roster' && players && (
+          <RosterEditor players={players} onChange={reload} flash={flash} />
         )}
         {tab === 'settings' && settings && (
           <SettingsEditor settings={settings} onSaved={reload} flash={flash} />
@@ -453,4 +466,229 @@ function Field({ label, hint, children }) {
 
 function Centered({ children }) {
   return <div className="mx-auto max-w-6xl px-4 sm:px-6 py-24 text-center text-ink-500">{children}</div>;
+}
+
+// --- Roster tab ---
+
+const GRADE_OPTIONS = ['G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11'];
+
+function gradeToTier(grade) {
+  if (grade === 'G4' || grade === 'G5') return 'T1';
+  if (grade === 'G6' || grade === 'G7' || grade === 'G8') return 'T2';
+  return 'T3';
+}
+
+function RosterEditor({ players, onChange, flash }) {
+  const pending = players.players.filter((p) => p.pending);
+  const bracketed = players.players.filter((p) => !p.pending);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const generate = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const result = await api.generateBrackets();
+      const matchCount = (result.summary || []).reduce((n, s) => n + s.newMatches.length, 0);
+      flash(`Integrated ${pending.length} player${pending.length === 1 ? '' : 's'} via ${matchCount} new match${matchCount === 1 ? '' : 'es'}.`);
+      setConfirming(false);
+      await onChange();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <AddPlayerCard onAdded={onChange} flash={flash} />
+
+      <section className="card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-display text-lg font-semibold text-ink-800">Pending players</h3>
+            <p className="text-sm text-ink-500">
+              {pending.length === 0
+                ? 'No new players waiting. Add one above when registrations come in.'
+                : `${pending.length} new player${pending.length === 1 ? '' : 's'} waiting to be integrated into the bracket.`}
+            </p>
+          </div>
+          {pending.length > 0 && (
+            <button onClick={() => setConfirming(true)} className="btn-primary" disabled={busy}>
+              Generate brackets
+            </button>
+          )}
+        </div>
+
+        {pending.length > 0 && (
+          <div className="mt-4 grid sm:grid-cols-2 gap-3">
+            {pending.map((p) => (
+              <PendingRow key={p.id} p={p} onChange={onChange} flash={flash} />
+            ))}
+          </div>
+        )}
+
+        {err && <div className="mt-3 text-sm text-red-600">{err}</div>}
+      </section>
+
+      <section className="card p-5">
+        <h3 className="font-display text-lg font-semibold text-ink-800">In the bracket</h3>
+        <p className="text-sm text-ink-500">{bracketed.length} player{bracketed.length === 1 ? '' : 's'} already seeded. These are read-only.</p>
+        <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {bracketed.map((p) => (
+            <div key={p.id} className="rounded-lg border border-ink-100 px-3 py-2 text-sm">
+              <div className="font-semibold text-ink-800 truncate">{p.name}</div>
+              <div className="text-[11px] text-ink-500">
+                {p.id} · {p.grade} · {p.tier}
+                {p.parent && <> · {p.parent}</>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {confirming && (
+        <ConfirmDialog
+          pending={pending}
+          busy={busy}
+          onCancel={() => setConfirming(false)}
+          onConfirm={generate}
+        />
+      )}
+    </div>
+  );
+}
+
+function AddPlayerCard({ onAdded, flash }) {
+  const [name, setName] = useState('');
+  const [grade, setGrade] = useState('G4');
+  const [parent, setParent] = useState('');
+  const [contact, setContact] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.addPlayer({ name, grade, parent, contact });
+      flash(`Added ${name} (${grade}).`);
+      setName('');
+      setParent('');
+      setContact('');
+      setGrade('G4');
+      await onAdded();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="card p-5">
+      <h3 className="font-display text-lg font-semibold text-ink-800">Add a new player</h3>
+      <p className="text-sm text-ink-500">They'll sit in the Pending list until you click Generate brackets.</p>
+      <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Field label="Student name">
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Hassan Al-Maliki" />
+        </Field>
+        <Field label="Grade" hint={`Tier ${gradeToTier(grade).slice(1)} (${gradeToTier(grade)})`}>
+          <select className="input" value={grade} onChange={(e) => setGrade(e.target.value)}>
+            {GRADE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </Field>
+        <Field label="Parent name">
+          <input className="input" value={parent} onChange={(e) => setParent(e.target.value)} placeholder="optional" />
+        </Field>
+        <Field label="Contact">
+          <input className="input" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="optional" />
+        </Field>
+      </div>
+      {err && <div className="mt-3 text-sm text-red-600">{err}</div>}
+      <div className="mt-4 flex justify-end">
+        <button type="submit" className="btn-primary" disabled={busy || !name}>
+          {busy ? 'Adding…' : 'Add player'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function PendingRow({ p, onChange, flash }) {
+  const [busy, setBusy] = useState(false);
+  const remove = async () => {
+    if (!confirm(`Remove ${p.name} from pending?`)) return;
+    setBusy(true);
+    try {
+      await api.removePlayer(p.id);
+      flash(`Removed ${p.name}.`);
+      await onChange();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-3 flex items-center justify-between gap-2">
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-ink-800 truncate">{p.name}</div>
+        <div className="text-[11px] text-ink-500">
+          {p.id} · {p.grade} · {p.tier}
+          {p.parent && <> · {p.parent}</>}
+        </div>
+      </div>
+      <button onClick={remove} disabled={busy} className="btn-ghost text-xs text-red-600 hover:bg-red-50">
+        Remove
+      </button>
+    </div>
+  );
+}
+
+function ConfirmDialog({ pending, busy, onCancel, onConfirm }) {
+  const byTier = { T1: [], T2: [], T3: [] };
+  for (const p of pending) byTier[p.tier].push(p);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 p-4">
+      <div className="card max-w-lg w-full p-6">
+        <h3 className="font-display text-lg font-semibold text-ink-800">Generate brackets?</h3>
+        <p className="mt-2 text-sm text-ink-500">
+          This appends new play-in matches and only changes <strong>scheduled</strong> matches in the bracket. Completed or in-progress matches stay exactly as they are.
+        </p>
+
+        <div className="mt-4 space-y-2">
+          {['T1', 'T2', 'T3'].map((t) => {
+            const players = byTier[t];
+            if (players.length === 0) return null;
+            const tierName = t === 'T1' ? 'Tier 1' : t === 'T2' ? 'Tier 2' : 'Tier 3';
+            // K new players in a tier produces K play-in matches:
+            //  K-1 among them, then 1 final vs a displaced existing player.
+            return (
+              <div key={t} className="rounded-lg border border-ink-100 p-3 text-sm">
+                <div className="font-semibold text-ink-800">{tierName} — {players.length} new</div>
+                <div className="text-ink-600 mt-1">
+                  {players.map((p) => p.name).join(', ')}
+                </div>
+                <div className="text-[11px] text-ink-500 mt-1">
+                  Adds {players.length} match{players.length === 1 ? '' : 'es'}: {players.length > 1 ? `${players.length - 1} among new + 1 ` : '1 '}vs existing slot.
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={onCancel} className="btn-ghost" disabled={busy}>Cancel</button>
+          <button onClick={onConfirm} className="btn-primary" disabled={busy}>
+            {busy ? 'Generating…' : 'Generate'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

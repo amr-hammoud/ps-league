@@ -85,6 +85,32 @@ Admin (cookie auth):
 - `POST /api/admin/settings` — full settings object
 - `POST /api/admin/reset` — clears every score & winner
 
+## Adding late registrations on tournament day
+
+The Admin panel has a **Roster** tab. From there:
+
+1. **Add a player** — name, grade, parent, contact. The new player is marked `pending: true` and shows up in the *Pending players* list (and on the public Players page as "Pending integration").
+2. **Add more** if multiple registrations come in.
+3. **Click "Generate brackets"**. A confirmation dialog summarizes what'll happen per tier. Confirm → the integration runs.
+
+### How the integration protects existing matches
+
+For each tier with K new players, the algorithm:
+
+1. Finds the **earliest match in that tier that is still `scheduled`** (no winner, no scores started, no special status) and has at least one direct-player slot.
+2. Builds a single-elim ladder among the K new players (`K-1` matches), then one final play-in vs the displaced existing player (1 match). Total **K** new matches per tier.
+3. Splices the new matches *before* the target in the bracket array (so the scheduler sees dependencies in topological order), then redirects the target slot to "Winner of final play-in".
+
+Properties:
+
+- **Completed matches are never touched** — they're filtered out by status.
+- **In-progress matches are never touched** — they're filtered out by status / scores.
+- Only **one existing player per tier** is bumped into a play-in, no matter how many new players arrive.
+- Downstream rounds keep their shape — only the displaced slot now resolves through the new PI.
+- Every recompute respects already-set winners and scores: the cascading `winner of Mx` references still work after integration.
+
+If the bracket has no scheduled direct-player slot left in a tier (e.g., that tier is fully resolved), the integration fails for that tier and the admin gets an error — they can then manually decide what to do.
+
 ## Roster
 
 `data/players.json` is the source of truth. Each player carries `id`, `name`, `grade`, `tier`, `parent`, and `contact`. The bracket references players by id.

@@ -59,8 +59,8 @@ export default function Players() {
       );
     });
 
-  const inBracket = allFiltered.filter((p) => bracketedIds.has(p.id) || (!p.lateRegistration && bracketedIds.size === 0));
-  const lateReg = allFiltered.filter((p) => p.lateRegistration && !bracketedIds.has(p.id));
+  const inBracket = allFiltered.filter((p) => !p.pending && (bracketedIds.has(p.id) || bracketedIds.size === 0));
+  const lateReg = allFiltered.filter((p) => p.pending || (p.lateRegistration && !bracketedIds.has(p.id)));
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
@@ -70,7 +70,7 @@ export default function Players() {
           <p className="mt-1 text-ink-500">
             {data.players.length} registered · {bracketedIds.size} in the current bracket
             {lateReg.length > 0 && (
-              <> · <span className="text-amber-700 font-medium">{lateReg.length} late registrations awaiting bracket update</span></>
+              <> · <span className="text-amber-700 font-medium">{lateReg.length} pending integration</span></>
             )}
           </p>
         </div>
@@ -127,8 +127,8 @@ export default function Players() {
       {lateReg.length > 0 && (
         <section className="mt-10">
           <SectionHeading
-            title="Late registrations"
-            subtitle="Registered after the bracket was built. Awaiting an admin decision on inclusion."
+            title="Pending integration"
+            subtitle="Registered late — the admin will run a generate flow to add them to the bracket via play-ins."
             count={lateReg.length}
             accent="amber"
           />

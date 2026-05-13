@@ -110,6 +110,56 @@ const ALLOWED_STATUSES = new Set([
   'postponed',
 ]);
 
+const ALLOWED_GRADES = ['G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11'];
+
+function tierFromGrade(grade) {
+  if (grade === 'G4' || grade === 'G5') return 'T1';
+  if (grade === 'G6' || grade === 'G7' || grade === 'G8') return 'T2';
+  if (grade === 'G9' || grade === 'G10' || grade === 'G11') return 'T3';
+  return null;
+}
+
+function tierStageName(tier) {
+  if (tier === 'T1') return 'Tier 1';
+  if (tier === 'T2') return 'Tier 2';
+  if (tier === 'T3') return 'Tier 3';
+  return null;
+}
+
+function nextPlayerId(players) {
+  let max = 0;
+  for (const p of players.players) {
+    const m = /^P(\d+)$/.exec(p.id);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return 'P' + String(max + 1).padStart(2, '0');
+}
+
+function nextLateMatchNumber(bracket) {
+  let max = 0;
+  for (const m of bracket.matches) {
+    const match = /^L(\d+)$/.exec(m.id);
+    if (match) max = Math.max(max, Number(match[1]));
+  }
+  return max + 1;
+}
+
+// Find the earliest match in a tier that is still safe to mutate (not started,
+// no scores entered) and has at least one direct-player slot we can hijack.
+// Earlier targets distribute the schedule shift thinly across many downstream
+// matches rather than concentrating it on the last rounds.
+function findEarliestPendingDirectSlot(bracket, stage) {
+  for (const m of bracket.matches) {
+    if (m.stage !== stage) continue;
+    if (m.status && m.status !== 'scheduled') continue;
+    if (m.winner) continue;
+    if (m.scoreA != null || m.scoreB != null) continue;
+    if (m.playerA && m.playerA.type === 'player') return { matchId: m.id, side: 'playerA' };
+    if (m.playerB && m.playerB.type === 'player') return { matchId: m.id, side: 'playerB' };
+  }
+  return null;
+}
+
 function decorateBracket(bracket, players) {
   const byId = Object.fromEntries(bracket.matches.map((m) => [m.id, m]));
   return bracket.matches.map((m) => ({
@@ -326,6 +376,175 @@ app.post('/api/admin/bracket', requireAdmin, async (req, res) => {
   if (!next || !Array.isArray(next.matches)) return res.status(400).json({ error: 'Bad bracket shape' });
   await writeJSON('bracket.json', next);
   res.json({ ok: true });
+});
+
+// --- Roster CRUD + late-arrival integration ---
+
+app.post('/api/admin/player', requireAdmin, async (req, res) => {
+  const { name, grade, parent, contact } = req.body || {};
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'Name is required' });
+  if (!ALLOWED_GRADES.includes(grade)) {
+    return res.status(400).json({ error: `Grade must be one of: ${ALLOWED_GRADES.join(', ')}` });
+  }
+  const players = await readJSON('players.json');
+  const id = nextPlayerId(players);
+  const player = {
+    id,
+    name: String(name).trim(),
+    grade,
+    tier: tierFromGrade(grade),
+    parent: parent ? String(parent).trim() : null,
+    contact: contact ? String(contact).trim() : null,
+    pending: true,
+  };
+  players.players.push(player);
+  await writeJSON('players.json', players);
+  res.json({ ok: true, player });
+});
+
+app.delete('/api/admin/player/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const players = await readJSON('players.json');
+  const p = players.players.find((pl) => pl.id === id);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  if (!p.pending) {
+    return res.status(400).json({ error: 'Only pending players can be removed. Bracketed players must stay in the roster.' });
+  }
+  players.players = players.players.filter((pl) => pl.id !== id);
+  await writeJSON('players.json', players);
+  res.json({ ok: true });
+});
+
+app.patch('/api/admin/player/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, grade, parent, contact } = req.body || {};
+  const players = await readJSON('players.json');
+  const p = players.players.find((pl) => pl.id === id);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  if (name !== undefined) p.name = String(name).trim();
+  if (parent !== undefined) p.parent = parent ? String(parent).trim() : null;
+  if (contact !== undefined) p.contact = contact ? String(contact).trim() : null;
+  if (grade !== undefined) {
+    if (!ALLOWED_GRADES.includes(grade)) return res.status(400).json({ error: 'Invalid grade' });
+    if (!p.pending) return res.status(400).json({ error: "Can't change grade of a bracketed player" });
+    p.grade = grade;
+    p.tier = tierFromGrade(grade);
+  }
+  await writeJSON('players.json', players);
+  res.json({ ok: true, player: p });
+});
+
+// Integrate every player flagged `pending: true` into the live bracket as
+// late-arrival play-ins. Algorithm: for each tier, build a single-elim ladder
+// among new players, then a final play-in vs one displaced existing player.
+// Only ever touches scheduled, score-less, winner-less matches.
+app.post('/api/admin/generate', requireAdmin, async (req, res) => {
+  const players = await readJSON('players.json');
+  const bracket = await readJSON('bracket.json');
+
+  const pending = players.players.filter((p) => p.pending);
+  if (pending.length === 0) {
+    return res.status(400).json({ error: 'No pending players to integrate.' });
+  }
+
+  const byTier = { T1: [], T2: [], T3: [] };
+  for (const p of pending) {
+    if (!byTier[p.tier]) return res.status(400).json({ error: `Unknown tier for player ${p.id}` });
+    byTier[p.tier].push(p);
+  }
+
+  let nextNum = nextLateMatchNumber(bracket);
+  const summary = [];
+
+  for (const tier of ['T1', 'T2', 'T3']) {
+    const newPlayers = byTier[tier];
+    if (newPlayers.length === 0) continue;
+
+    const stage = tierStageName(tier);
+    const target = findEarliestPendingDirectSlot(bracket, stage);
+    if (!target) {
+      return res.status(400).json({
+        error: `No scheduled direct-player slot left in ${stage}. ${newPlayers.length} new player(s) in this tier can't be integrated automatically.`,
+      });
+    }
+
+    const targetMatch = bracket.matches.find((m) => m.id === target.matchId);
+    const displacedRef = targetMatch[target.side];
+    const displacedPlayerId = displacedRef.id;
+    const displacedPlayerName = (players.players.find((p) => p.id === displacedPlayerId) || {}).name;
+
+    // 1) Mini-bracket among the new players (K-1 matches, top 1 advances)
+    const newMatches = [];
+    let survivors = newPlayers.map((p) => ({ type: 'player', id: p.id }));
+    let roundNum = 1;
+    while (survivors.length > 1) {
+      const nextRound = [];
+      for (let i = 0; i < survivors.length; i += 2) {
+        if (i + 1 < survivors.length) {
+          const mid = 'L' + nextNum++;
+          newMatches.push({
+            id: mid,
+            stage,
+            round: `PI-LATE-${tier}-R${roundNum}`,
+            playerA: survivors[i],
+            playerB: survivors[i + 1],
+            scoreA: null,
+            scoreB: null,
+            winner: null,
+            status: 'scheduled',
+            notes: 'Late-arrival play-in (new vs new)',
+          });
+          nextRound.push({ type: 'winner', id: mid });
+        } else {
+          // Odd one out gets a bye to the next round
+          nextRound.push(survivors[i]);
+        }
+      }
+      survivors = nextRound;
+      roundNum++;
+    }
+
+    // 2) Final play-in: surviving new player vs the displaced existing player
+    const finalId = 'L' + nextNum++;
+    newMatches.push({
+      id: finalId,
+      stage,
+      round: `PI-LATE-${tier}-FINAL`,
+      playerA: survivors[0],
+      playerB: { type: 'player', id: displacedPlayerId },
+      scoreA: null,
+      scoreB: null,
+      winner: null,
+      status: 'scheduled',
+      notes: 'Late-arrival final play-in vs existing bracket slot',
+    });
+
+    // 3) Splice the new matches in just before the target so the scheduler
+    //    sees dependencies in topological order, then point the target slot
+    //    at the final play-in's winner.
+    const targetIdx = bracket.matches.findIndex((m) => m.id === target.matchId);
+    bracket.matches.splice(targetIdx, 0, ...newMatches);
+    targetMatch[target.side] = { type: 'winner', id: finalId };
+
+    // 4) Clear pending flag on integrated players
+    for (const np of newPlayers) {
+      const p = players.players.find((pl) => pl.id === np.id);
+      if (p) delete p.pending;
+    }
+
+    summary.push({
+      tier,
+      stage,
+      newPlayers: newPlayers.map((p) => ({ id: p.id, name: p.name })),
+      displaced: { id: displacedPlayerId, name: displacedPlayerName, into: target.matchId, side: target.side },
+      newMatches: newMatches.map((m) => ({ id: m.id, round: m.round })),
+    });
+  }
+
+  await writeJSON('bracket.json', bracket);
+  await writeJSON('players.json', players);
+
+  res.json({ ok: true, summary });
 });
 
 // Static React app

@@ -36,4 +36,15 @@ export const api = {
   resetAll: () => request('/api/admin/reset', { method: 'POST' }),
   updateSettings: (settings) =>
     request('/api/admin/settings', { method: 'POST', body: JSON.stringify(settings) }),
+
+  addPlayer: (payload) =>
+    request('/api/admin/player', { method: 'POST', body: JSON.stringify(payload) }),
+  removePlayer: (id) =>
+    request(`/api/admin/player/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  updatePlayer: (id, payload) =>
+    request(`/api/admin/player/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  generateBrackets: () => request('/api/admin/generate', { method: 'POST' }),
 };
