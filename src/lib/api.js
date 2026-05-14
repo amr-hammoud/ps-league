@@ -54,6 +54,11 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   generateBrackets: () => request('/api/admin/generate', { method: 'POST' }),
+  setSlot: (matchId, side, playerId) =>
+    request('/api/admin/slot', {
+      method: 'POST',
+      body: JSON.stringify({ matchId, side, playerId }),
+    }),
   swapPlayers: (playerAId, playerBId) =>
     request('/api/admin/swap', {
       method: 'POST',

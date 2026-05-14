@@ -489,6 +489,74 @@ app.patch('/api/admin/player/:id', requireAdmin, async (req, res) => {
   res.json({ ok: true, player: p });
 });
 
+// --- direct slot assignment ------------------------------------------------
+//
+// Manual placement of a player into a specific bracket slot. The simplest
+// possible mental model — pick a slot, pick a player. If the player was in
+// another direct slot, that slot becomes empty (the admin can place someone
+// else there). If the target slot already had a player, that player is
+// bumped to unassigned.
+//
+// Only direct-player slots can be edited via this endpoint. "Winner of Mx"
+// references are resolved dynamically from upstream and shouldn't be
+// overwritten — clearing the upstream match's winner is the way to "edit"
+// those.
+
+app.post('/api/admin/slot', requireAdmin, async (req, res) => {
+  const { matchId, side, playerId } = req.body || {};
+  if (!matchId) return res.status(400).json({ error: 'matchId required' });
+  if (side !== 'playerA' && side !== 'playerB') return res.status(400).json({ error: 'side must be "playerA" or "playerB"' });
+
+  const bracket = await readJSON('bracket.json');
+  const players = await readJSON('players.json');
+
+  const target = bracket.matches.find((m) => m.id === matchId);
+  if (!target) return res.status(404).json({ error: 'Match not found' });
+
+  // Don't allow editing a slot that resolves from an upstream match.
+  if (target[side] && target[side].type === 'winner') {
+    return res.status(400).json({
+      error: `${matchId}.${side} is a "Winner of ${target[side].id}" reference — clear ${target[side].id}'s winner to change who plays here.`,
+    });
+  }
+
+  // The target match must still be scheduled.
+  if (target.winner || target.scoreA != null || target.scoreB != null) {
+    return res.status(400).json({ error: `${matchId} has already started — clear its scores/winner first.` });
+  }
+  if (target.status && target.status !== 'scheduled') {
+    return res.status(400).json({ error: `${matchId} has status "${target.status}" — can't edit slots.` });
+  }
+
+  if (playerId) {
+    const player = players.players.find((p) => p.id === playerId);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    if (player.withdrawn) return res.status(400).json({ error: `${player.name} has been merged into another team — un-pair them first.` });
+    if (player.pending) return res.status(400).json({ error: `${player.name} hasn't been integrated yet — use the Generate flow first.` });
+
+    // Vacate this player's previous slot (if any).
+    const prev = findDirectSlot(bracket, playerId);
+    if (prev && !(prev.match.id === matchId && prev.side === side)) {
+      const pm = prev.match;
+      if (pm.winner || pm.scoreA != null || pm.scoreB != null) {
+        return res.status(400).json({ error: `${player.name} is currently in ${pm.id} which already has scores — clear it first.` });
+      }
+      if (pm.status && pm.status !== 'scheduled') {
+        return res.status(400).json({ error: `${player.name} is currently in ${pm.id} which has status "${pm.status}" — clear it first.` });
+      }
+      pm[prev.side] = null;
+    }
+
+    target[side] = { type: 'player', id: playerId };
+  } else {
+    // Clearing the slot leaves whatever player was here unassigned.
+    target[side] = null;
+  }
+
+  await writeJSON('bracket.json', bracket);
+  res.json({ ok: true, match: target });
+});
+
 // --- player swap -----------------------------------------------------------
 //
 // Swap two players between their direct bracket slots. Used when students

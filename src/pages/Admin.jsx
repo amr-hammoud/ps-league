@@ -126,8 +126,8 @@ function Dashboard({ onLogout }) {
       </div>
 
       <div className="mt-6">
-        {tab === 'matches' && bracket && (
-          <MatchEditor bracket={bracket} onChange={reload} flash={flash} />
+        {tab === 'matches' && bracket && players && (
+          <MatchEditor bracket={bracket} players={players} onChange={reload} flash={flash} />
         )}
         {tab === 'roster' && players && (
           <RosterEditor players={players} onChange={reload} flash={flash} />
@@ -160,7 +160,7 @@ function TabButton({ active, onClick, children }) {
   );
 }
 
-function MatchEditor({ bracket, onChange, flash }) {
+function MatchEditor({ bracket, players, onChange, flash }) {
   const [swapOpen, setSwapOpen] = useState(false);
 
   const groups = [
@@ -195,7 +195,14 @@ function MatchEditor({ bracket, onChange, flash }) {
             <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-500 mb-3">{g.label}</h3>
             <div className="space-y-3">
               {items.map((m) => (
-                <MatchRow key={m.id} m={m} onSaved={() => { onChange(); flash(`Saved ${m.id}`); }} />
+                <MatchRow
+                  key={m.id}
+                  m={m}
+                  bracket={bracket}
+                  players={players}
+                  onSaved={() => { onChange(); flash(`Saved ${m.id}`); }}
+                  onAssigned={() => { onChange(); flash(`Updated ${m.id}`); }}
+                />
               ))}
             </div>
           </section>
@@ -213,13 +220,14 @@ function MatchEditor({ bracket, onChange, flash }) {
   );
 }
 
-function MatchRow({ m, onSaved }) {
+function MatchRow({ m, bracket, players, onSaved, onAssigned }) {
   const [scoreA, setScoreA] = useState(m.scoreA ?? '');
   const [scoreB, setScoreB] = useState(m.scoreB ?? '');
   const [winner, setWinner] = useState(m.winner ?? '');
   const [status, setStatus] = useState(m.status || 'scheduled');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const [assignSide, setAssignSide] = useState(null); // 'playerA' | 'playerB' | null
 
   // Reset local state if the underlying match changes (e.g. after reset-all)
   useEffect(() => {
@@ -326,6 +334,8 @@ function MatchRow({ m, onSaved }) {
           onSelect={() => setWinner(m.resolvedA?.id || '')}
           disabled={!canEdit || isCancelled}
           scoreless={isWalkover || isCancelled}
+          editable={isSlotEditable(m, 'playerA')}
+          onEdit={() => setAssignSide('playerA')}
         />
         <PlayerInput
           side={m.resolvedB}
@@ -335,8 +345,21 @@ function MatchRow({ m, onSaved }) {
           onSelect={() => setWinner(m.resolvedB?.id || '')}
           disabled={!canEdit || isCancelled}
           scoreless={isWalkover || isCancelled}
+          editable={isSlotEditable(m, 'playerB')}
+          onEdit={() => setAssignSide('playerB')}
         />
       </div>
+
+      {assignSide && (
+        <AssignPlayerDialog
+          matchId={m.id}
+          side={assignSide}
+          bracket={bracket}
+          players={players}
+          onClose={() => setAssignSide(null)}
+          onAssigned={() => { setAssignSide(null); onAssigned && onAssigned(); }}
+        />
+      )}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div className="text-xs text-ink-500">
           {isCancelled ? (
@@ -369,28 +392,56 @@ function MatchRow({ m, onSaved }) {
   );
 }
 
-function PlayerInput({ side, score, onScore, selected, onSelect, disabled, scoreless }) {
+// A slot is editable when it isn't a "winner of Mx" reference AND its match
+// hasn't started yet (no winner, no scores, no special status).
+function isSlotEditable(m, side) {
+  const ref = m[side];
+  if (ref && ref.type === 'winner') return false;
+  if (m.winner) return false;
+  if (m.scoreA != null || m.scoreB != null) return false;
+  if (m.status && m.status !== 'scheduled') return false;
+  return true;
+}
+
+function PlayerInput({ side, score, onScore, selected, onSelect, disabled, scoreless, editable, onEdit }) {
   const pending = side?.source === 'pending';
+  const empty = !side;
   return (
     <div
       className={
-        'rounded-xl border p-3 transition cursor-pointer ' +
+        'rounded-xl border p-3 transition ' +
         (disabled || pending
           ? 'border-ink-100 bg-ink-50 cursor-not-allowed'
+          : empty
+          ? 'border-dashed border-ink-200 bg-ink-50/40'
           : selected
-          ? 'border-brand-500 bg-brand-50 ring-4 ring-brand-500/15'
-          : 'border-ink-200 bg-white hover:border-brand-300')
+          ? 'border-brand-500 bg-brand-50 ring-4 ring-brand-500/15 cursor-pointer'
+          : 'border-ink-200 bg-white hover:border-brand-300 cursor-pointer')
       }
-      onClick={() => !disabled && !pending && onSelect()}
-      role="button"
-      tabIndex={0}
+      onClick={() => !disabled && !pending && !empty && onSelect()}
+      role={empty ? undefined : 'button'}
+      tabIndex={empty ? -1 : 0}
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className={'text-sm font-semibold truncate ' + (pending ? 'text-ink-400 italic' : 'text-ink-800')}>
-            {side?.name || '—'}
+        <div className="min-w-0 flex-1">
+          <div className={'text-sm font-semibold truncate ' + (pending || empty ? 'text-ink-400 italic' : 'text-ink-800')}>
+            {empty ? 'TBD — click "Change player"' : side?.name || '—'}
           </div>
-          {!pending && side?.grade && <div className="text-[11px] text-ink-500">{side.grade}</div>}
+          {!pending && !empty && side?.grade && (
+            <div className="text-[11px] text-ink-500">
+              {side.grade}
+              {side.partner && <> · + {side.partner}</>}
+            </div>
+          )}
+          {editable && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }}
+              className="mt-1 text-[11px] font-medium text-brand-600 hover:underline"
+            >
+              {empty ? 'Assign player →' : 'Change player'}
+            </button>
+          )}
         </div>
         {scoreless ? (
           <span className={'w-16 text-center text-xs font-semibold uppercase tracking-wider ' + (selected ? 'text-brand-600' : 'text-ink-400')}>
@@ -404,11 +455,155 @@ function PlayerInput({ side, score, onScore, selected, onSelect, disabled, score
             value={score}
             onChange={(e) => onScore(e.target.value)}
             onClick={(e) => e.stopPropagation()}
-            disabled={disabled || pending}
+            disabled={disabled || pending || empty}
             className="w-16 rounded-lg border border-ink-200 px-2 py-1 text-center font-semibold tabular-nums focus:outline-none focus:ring-4 focus:ring-brand-500/15 focus:border-brand-500 disabled:bg-ink-100 disabled:text-ink-400"
             placeholder="–"
           />
         )}
+      </div>
+    </div>
+  );
+}
+
+// Pick a player to put in a specific slot. The list is grouped by tier with
+// each player labeled by their current location ("In M5", "Unassigned"), so
+// the admin can see at a glance whether they're moving someone or filling an
+// empty slot.
+function AssignPlayerDialog({ matchId, side, bracket, players, onClose, onAssigned }) {
+  const [search, setSearch] = useState('');
+  const [tierFilter, setTierFilter] = useState('all');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const target = bracket.matches.find((m) => m.id === matchId);
+  const currentId = target && target[side] && target[side].type === 'player' ? target[side].id : null;
+
+  // playerId → { matchId, side } for everyone currently in a direct slot
+  const slotIndex = (() => {
+    const idx = {};
+    for (const m of bracket.matches) {
+      if (m.playerA && m.playerA.type === 'player') idx[m.playerA.id] = { matchId: m.id, side: 'playerA' };
+      if (m.playerB && m.playerB.type === 'player') idx[m.playerB.id] = { matchId: m.id, side: 'playerB' };
+    }
+    return idx;
+  })();
+
+  const eligible = players.players
+    .filter((p) => !p.withdrawn && !p.pending)
+    .filter((p) => tierFilter === 'all' || p.tier === tierFilter)
+    .filter((p) => {
+      const q = search.toLowerCase().trim();
+      if (!q) return true;
+      return (
+        p.name.toLowerCase().includes(q) ||
+        (p.parent || '').toLowerCase().includes(q) ||
+        (p.teammate || '').toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const pick = async (playerId) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.setSlot(matchId, side, playerId);
+      onAssigned();
+    } catch (e) {
+      setErr(e.message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 p-4">
+      <div className="card max-w-2xl w-full max-h-[85vh] flex flex-col p-6">
+        <div>
+          <h3 className="font-display text-lg font-semibold text-ink-800">
+            Assign player to {matchId} · side {side === 'playerA' ? 'A' : 'B'}
+          </h3>
+          <p className="mt-1 text-sm text-ink-500">
+            Picking a player here moves them from their current slot (if any). Whoever is currently in this slot becomes unassigned.
+          </p>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <input
+            className="input flex-1 min-w-48"
+            placeholder="Search by name or parent…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoFocus
+          />
+          <div className="flex rounded-xl border border-ink-200 bg-white overflow-hidden">
+            {['all', 'T1', 'T2', 'T3'].map((t) => (
+              <button
+                key={t}
+                onClick={() => setTierFilter(t)}
+                className={
+                  'px-3 py-2 text-xs font-medium border-r last:border-r-0 border-ink-200 ' +
+                  (tierFilter === t ? 'bg-brand-500 text-white' : 'text-ink-600 hover:bg-ink-50')
+                }
+              >
+                {t === 'all' ? 'All' : t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 flex-1 overflow-y-auto space-y-1.5 pr-1">
+          <button
+            type="button"
+            onClick={() => pick(null)}
+            disabled={busy || !currentId}
+            className="w-full rounded-xl border border-dashed border-ink-200 px-3 py-2 text-sm text-left text-ink-600 hover:bg-ink-50 disabled:opacity-50"
+          >
+            ✕ Clear this slot (leave empty)
+          </button>
+          {eligible.map((p) => {
+            const slot = slotIndex[p.id];
+            const isCurrent = slot && slot.matchId === matchId && slot.side === side;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => pick(p.id)}
+                disabled={busy || isCurrent}
+                className={
+                  'w-full rounded-xl border px-3 py-2 text-sm flex items-center justify-between gap-3 text-left transition ' +
+                  (isCurrent
+                    ? 'border-brand-500 bg-brand-50 ring-4 ring-brand-500/15 cursor-default'
+                    : 'border-ink-100 hover:border-brand-300 hover:bg-brand-50')
+                }
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-ink-800 truncate">{p.name}</div>
+                  <div className="text-[11px] text-ink-500 truncate">
+                    {p.grade} · {p.tier}
+                    {p.teammate ? <> · 🤝 {p.teammate}</> : p.parent ? <> · + {p.parent}</> : null}
+                  </div>
+                </div>
+                <div className="shrink-0 text-[11px] font-medium">
+                  {isCurrent ? (
+                    <span className="text-brand-700">Currently here</span>
+                  ) : slot ? (
+                    <span className="text-ink-500">In {slot.matchId}</span>
+                  ) : (
+                    <span className="text-amber-600">Unassigned</span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+          {eligible.length === 0 && (
+            <div className="text-center py-6 text-sm text-ink-400">No players match this filter.</div>
+          )}
+        </div>
+
+        {err && <div className="mt-3 text-sm text-red-600">{err}</div>}
+
+        <div className="mt-4 flex justify-end">
+          <button onClick={onClose} className="btn-ghost" disabled={busy}>Close</button>
+        </div>
       </div>
     </div>
   );
