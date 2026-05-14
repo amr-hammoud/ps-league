@@ -107,16 +107,27 @@ function requireAdmin(req, res, next) {
 }
 
 // Resolve a match-side reference into a concrete player object (or null).
+// Each entry in the bracket is a 2-player team (FC26 multiplayer mode). The
+// "captain" is the player on file; the "partner" is whichever of these is set:
+//   1. an explicit teammate (set via /api/admin/team/merge for student pairs)
+//   2. otherwise the parent named in players.json (the default family team)
+function teamPartner(player) {
+  if (player.teammate) return player.teammate;
+  if (player.parent) return player.parent;
+  return null;
+}
+
 function resolveSide(side, players, bracketById) {
   if (!side) return null;
   if (side.type === 'player') {
     const p = players.find((p) => p.id === side.id);
-    return p ? { ...p, source: 'player' } : null;
+    if (!p) return null;
+    return { ...p, source: 'player', partner: teamPartner(p) };
   }
   if (side.type === 'winner') {
     const src = bracketById[side.id];
     if (!src || !src.winner) {
-      return { id: null, name: `Winner of ${side.id}`, grade: '', tier: '', source: 'pending', from: side.id };
+      return { id: null, name: `Winner of ${side.id}`, grade: '', tier: '', source: 'pending', from: side.id, partner: null };
     }
     return resolveSide({ type: 'player', id: src.winner }, players, bracketById);
   }
@@ -476,6 +487,89 @@ app.patch('/api/admin/player/:id', requireAdmin, async (req, res) => {
   }
   await writeJSON('players.json', players);
   res.json({ ok: true, player: p });
+});
+
+// --- 2v2 team merges -----------------------------------------------------
+//
+// Each bracket slot represents a 2-player team. By default the team is
+// (student + their parent). When two students show up without parents and
+// want to play together, the admin "merges" them: one becomes the captain,
+// the other is marked withdrawn. Any pending bracket match where the partner
+// was a direct entrant becomes a walkover for the opponent so downstream
+// matches resolve cleanly.
+
+app.post('/api/admin/team/merge', requireAdmin, async (req, res) => {
+  const { captainId, partnerId } = req.body || {};
+  if (!captainId || !partnerId) return res.status(400).json({ error: 'captainId and partnerId are required' });
+  if (captainId === partnerId) return res.status(400).json({ error: 'Captain and partner must be different players' });
+
+  const players = await readJSON('players.json');
+  const captain = players.players.find((p) => p.id === captainId);
+  const partner = players.players.find((p) => p.id === partnerId);
+  if (!captain || !partner) return res.status(404).json({ error: 'Player not found' });
+  if (captain.withdrawn) return res.status(400).json({ error: `${captain.name} has already been merged into another team` });
+  if (partner.withdrawn) return res.status(400).json({ error: `${partner.name} has already been merged into another team` });
+  if (captain.teammate) return res.status(400).json({ error: `${captain.name} already has a teammate — un-pair them first` });
+  if (partner.teammate) return res.status(400).json({ error: `${partner.name} is the captain of another pair — pick the other student as captain` });
+
+  // Set the team relationship. partner.name is kept as-is so the display can
+  // show e.g. "Adel Baamer + Ziad Nasser (G4)".
+  captain.teammate = partner.name + (partner.grade ? ' (' + partner.grade + ')' : '');
+  captain.teammatePlayerId = partner.id;
+  partner.withdrawn = true;
+  partner.mergedInto = captain.id;
+
+  // Auto-walkover any pending match where the partner is a direct entrant and
+  // their opponent is also a direct entrant. Matches whose opponent is itself
+  // a "winner of Mx" reference can't be resolved here (the opponent isn't
+  // known yet) — those are left alone and surface as TBD on the bracket.
+  const bracket = await readJSON('bracket.json');
+  const walkovers = [];
+  for (const m of bracket.matches) {
+    if (m.status && m.status !== 'scheduled') continue;
+    if (m.winner) continue;
+    const aMatches = m.playerA && m.playerA.type === 'player' && m.playerA.id === partner.id;
+    const bMatches = m.playerB && m.playerB.type === 'player' && m.playerB.id === partner.id;
+    if (!aMatches && !bMatches) continue;
+    const opponent = aMatches ? m.playerB : m.playerA;
+    if (!opponent || opponent.type !== 'player') continue;
+    m.status = 'walkover';
+    m.winner = opponent.id;
+    m.scoreA = null;
+    m.scoreB = null;
+    m.notes = (m.notes ? m.notes + ' · ' : '') + `Walkover — ${partner.name} merged into team with ${captain.name}`;
+    walkovers.push(m.id);
+  }
+
+  await writeJSON('bracket.json', bracket);
+  await writeJSON('players.json', players);
+
+  res.json({
+    ok: true,
+    captain: { id: captain.id, name: captain.name },
+    partner: { id: partner.id, name: partner.name },
+    walkoverMatches: walkovers,
+  });
+});
+
+app.post('/api/admin/team/unmerge', requireAdmin, async (req, res) => {
+  const { captainId } = req.body || {};
+  const players = await readJSON('players.json');
+  const captain = players.players.find((p) => p.id === captainId);
+  if (!captain) return res.status(404).json({ error: 'Captain not found' });
+  if (!captain.teammatePlayerId) return res.status(400).json({ error: 'This player is not paired with anyone' });
+  const partner = players.players.find((p) => p.id === captain.teammatePlayerId);
+  if (partner) {
+    delete partner.withdrawn;
+    delete partner.mergedInto;
+  }
+  delete captain.teammate;
+  delete captain.teammatePlayerId;
+  await writeJSON('players.json', players);
+  // We do NOT auto-revert walkover matches that the merge produced — the
+  // tournament state may have moved on. The admin can manually re-open any
+  // affected matches from the Matches tab.
+  res.json({ ok: true });
 });
 
 // Integrate every player flagged `pending: true` into the live bracket as

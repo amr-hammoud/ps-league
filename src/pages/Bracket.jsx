@@ -26,7 +26,9 @@ import {
 // Card dimensions — kept compact so the whole bracket can fit in a single
 // pannable canvas without each match feeling cramped.
 const NODE_WIDTH = 290;
-const NODE_HEIGHT = 138;
+// Tall enough to fit captain name + partner ("+ Hatan Baamer") on each side
+// without dagre laying nodes on top of each other.
+const NODE_HEIGHT = 172;
 
 // --- Layout: dagre converts the match DAG into XY positions. We declare
 // horizontal flow so progression reads left → right like a classic bracket.
@@ -121,20 +123,25 @@ function Side({ label, score, winning, status }) {
   // For walkovers, label the winner's "score" as W instead of a numeric value.
   const scoreText = status === 'walkover' && winning ? 'W' : (score == null ? '–' : score);
   return (
-    <div className={'flex items-center justify-between px-3 py-2 ' + (winning ? 'bg-brand-50' : '')}>
-      <div className="min-w-0 flex items-center gap-2">
-        {winning && <span className="h-2 w-2 rounded-full bg-brand-500 shrink-0" />}
-        <span
-          className={
-            'text-sm truncate ' +
-            (isPending ? 'text-ink-400 italic' : winning ? 'font-semibold text-brand-800' : 'font-medium text-ink-800')
-          }
-        >
-          {(label && label.name) || 'TBD'}
-        </span>
-        {label && label.grade && !isPending && <span className="text-[10px] text-ink-400 shrink-0">{label.grade}</span>}
+    <div className={'flex items-center justify-between px-3 py-2 gap-2 ' + (winning ? 'bg-brand-50' : '')}>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          {winning && <span className="h-2 w-2 rounded-full bg-brand-500 shrink-0" />}
+          <span
+            className={
+              'text-sm truncate ' +
+              (isPending ? 'text-ink-400 italic' : winning ? 'font-semibold text-brand-800' : 'font-medium text-ink-800')
+            }
+          >
+            {(label && label.name) || 'TBD'}
+          </span>
+          {label && label.grade && !isPending && <span className="text-[10px] text-ink-400 shrink-0">{label.grade}</span>}
+        </div>
+        {label && label.partner && !isPending && (
+          <div className="text-[11px] text-ink-500 truncate pl-3.5">+ {label.partner}</div>
+        )}
       </div>
-      <span className={'text-sm font-bold tabular-nums shrink-0 ml-2 ' + (winning ? 'text-brand-600' : 'text-ink-400')}>
+      <span className={'text-sm font-bold tabular-nums shrink-0 ' + (winning ? 'text-brand-600' : 'text-ink-400')}>
         {scoreText}
       </span>
     </div>

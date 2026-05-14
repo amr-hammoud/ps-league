@@ -54,4 +54,15 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   generateBrackets: () => request('/api/admin/generate', { method: 'POST' }),
+
+  mergeTeam: (captainId, partnerId) =>
+    request('/api/admin/team/merge', {
+      method: 'POST',
+      body: JSON.stringify({ captainId, partnerId }),
+    }),
+  unmergeTeam: (captainId) =>
+    request('/api/admin/team/unmerge', {
+      method: 'POST',
+      body: JSON.stringify({ captainId }),
+    }),
 };

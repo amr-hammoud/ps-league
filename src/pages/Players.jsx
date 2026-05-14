@@ -58,13 +58,17 @@ export default function Players() {
   if (err) return <Centered>Error: {err}</Centered>;
   if (!data) return <Centered>Loading players…</Centered>;
 
+  // Withdrawn players have been merged into someone else's team — they don't
+  // compete on their own anymore, so they shouldn't appear in the public lists.
   const allFiltered = data.players
+    .filter((p) => !p.withdrawn)
     .filter((p) => (tier === 'all' ? true : p.tier === tier))
     .filter((p) => {
       const needle = q.toLowerCase();
       return (
         p.name.toLowerCase().includes(needle) ||
-        (p.parent || '').toLowerCase().includes(needle)
+        (p.parent || '').toLowerCase().includes(needle) ||
+        (p.teammate || '').toLowerCase().includes(needle)
       );
     });
 
@@ -154,6 +158,9 @@ export default function Players() {
 }
 
 function PlayerCard({ p, status, late }) {
+  // Display priority for the "partner" line: explicit teammate (student pair) > parent.
+  const partner = p.teammate || p.parent;
+  const partnerLabel = p.teammate ? 'Teammate' : 'Parent';
   return (
     <div className="card p-4 flex items-center gap-3">
       <div className="h-10 w-10 rounded-full bg-brand-gradient text-white flex items-center justify-center font-semibold shrink-0">
@@ -161,15 +168,21 @@ function PlayerCard({ p, status, late }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold text-ink-800 truncate">{p.name}</div>
-        {p.parent && (
+        {partner && (
           <div className="text-[11px] text-ink-500 truncate">
-            <span className="text-ink-400">Parent:</span> {p.parent}
+            <span className="text-ink-400">{partnerLabel}:</span> {partner}
           </div>
         )}
         <div className="flex items-center gap-2 text-[11px] text-ink-500 mt-0.5">
           <span>{p.grade}</span>
           <span className="text-ink-300">·</span>
           <span>{tierLabel(p.tier)}</span>
+          {p.teammate && (
+            <>
+              <span className="text-ink-300">·</span>
+              <span className="text-indigo-600 font-medium">Student pair</span>
+            </>
+          )}
         </div>
       </div>
       <div className="shrink-0">

@@ -263,7 +263,9 @@ function PlayerLabel({ side, ref: r }) {
   if (!side) return <span className="text-ink-400 italic">TBD</span>;
   return (
     <span>
-      {side.name} {side.grade && <span className="text-ink-400 text-xs">({side.grade})</span>}
+      <span className="font-medium">{side.name}</span>
+      {side.grade && <span className="text-ink-400 text-xs"> ({side.grade})</span>}
+      {side.partner && <span className="text-ink-500"> + {side.partner}</span>}
     </span>
   );
 }

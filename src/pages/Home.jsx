@@ -54,21 +54,22 @@ export default function Home() {
                 <Link to="/schedule" className="btn-outline">Match Schedule</Link>
               </div>
 
-              {data && (
-                <dl className="mt-10 grid grid-cols-4 gap-4 max-w-lg">
-                  <Stat
-                    label="Players"
-                    value={data.players.players.length}
-                    sub={(() => {
-                      const late = data.players.players.filter((p) => p.lateRegistration).length;
-                      return late > 0 ? `${late} late` : null;
-                    })()}
-                  />
-                  <Stat label="Matches" value={totalMatches} />
-                  <Stat label="Stations" value={data.schedule.settings.stations || 1} />
-                  <Stat label="Played" value={`${completed}/${totalMatches}`} />
-                </dl>
-              )}
+              {data && (() => {
+                const active = data.players.players.filter((p) => !p.withdrawn);
+                const pairs = active.filter((p) => p.teammate).length;
+                return (
+                  <dl className="mt-10 grid grid-cols-4 gap-4 max-w-lg">
+                    <Stat
+                      label="Teams"
+                      value={active.length}
+                      sub={pairs > 0 ? `${pairs} student pair${pairs === 1 ? '' : 's'}` : null}
+                    />
+                    <Stat label="Matches" value={totalMatches} />
+                    <Stat label="Stations" value={data.schedule.settings.stations || 1} />
+                    <Stat label="Played" value={`${completed}/${totalMatches}`} />
+                  </dl>
+                );
+              })()}
             </div>
 
             {/* Status card */}

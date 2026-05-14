@@ -486,8 +486,9 @@ function gradeToTier(grade) {
 }
 
 function RosterEditor({ players, onChange, flash }) {
-  const pending = players.players.filter((p) => p.pending);
-  const bracketed = players.players.filter((p) => !p.pending);
+  const pending = players.players.filter((p) => p.pending && !p.withdrawn);
+  const studentPairs = players.players.filter((p) => p.teammate && p.teammatePlayerId);
+  const bracketed = players.players.filter((p) => !p.pending && !p.withdrawn);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -540,19 +541,24 @@ function RosterEditor({ players, onChange, flash }) {
         {err && <div className="mt-3 text-sm text-red-600">{err}</div>}
       </section>
 
+      <TeamPairingCard players={players} pairs={studentPairs} onChange={onChange} flash={flash} />
+
       <section className="card p-5">
         <h3 className="font-display text-lg font-semibold text-ink-800">In the bracket</h3>
         <p className="text-sm text-ink-500">{bracketed.length} player{bracketed.length === 1 ? '' : 's'} already seeded. These are read-only.</p>
         <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {bracketed.map((p) => (
-            <div key={p.id} className="rounded-lg border border-ink-100 px-3 py-2 text-sm">
-              <div className="font-semibold text-ink-800 truncate">{p.name}</div>
-              <div className="text-[11px] text-ink-500">
-                {p.id} · {p.grade} · {p.tier}
-                {p.parent && <> · {p.parent}</>}
+          {bracketed.map((p) => {
+            const partner = p.teammate || p.parent;
+            return (
+              <div key={p.id} className="rounded-lg border border-ink-100 px-3 py-2 text-sm">
+                <div className="font-semibold text-ink-800 truncate">{p.name}</div>
+                <div className="text-[11px] text-ink-500">
+                  {p.id} · {p.grade} · {p.tier}
+                  {partner && <> · {p.teammate ? '🤝 ' : ''}{partner}</>}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -653,6 +659,136 @@ function PendingRow({ p, onChange, flash }) {
         Remove
       </button>
     </div>
+  );
+}
+
+// "Student pairs" — for kids whose parents didn't come. The admin picks two
+// players; one becomes captain, the other is marked withdrawn and their
+// pending match becomes a walkover for whoever they were about to face.
+function TeamPairingCard({ players, pairs, onChange, flash }) {
+  const [open, setOpen] = useState(false);
+  const [captainId, setCaptainId] = useState('');
+  const [partnerId, setPartnerId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  // Only players currently in the bracket, not already withdrawn, not already
+  // captains of another pair. Sorted alphabetically for quick visual scanning.
+  const eligible = players.players
+    .filter((p) => !p.withdrawn && !p.teammate && !p.pending)
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const submit = async () => {
+    if (!captainId || !partnerId) { setErr('Pick two players.'); return; }
+    setBusy(true);
+    setErr(null);
+    try {
+      const result = await api.mergeTeam(captainId, partnerId);
+      const captain = players.players.find((p) => p.id === captainId);
+      const partner = players.players.find((p) => p.id === partnerId);
+      flash(
+        `Paired ${captain?.name} + ${partner?.name}` +
+        (result.walkoverMatches?.length
+          ? ` (${result.walkoverMatches.length} match${result.walkoverMatches.length === 1 ? '' : 'es'} marked walkover)`
+          : ''),
+      );
+      setOpen(false);
+      setCaptainId('');
+      setPartnerId('');
+      await onChange();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unpair = async (p) => {
+    if (!confirm(`Un-pair ${p.name} + ${p.teammate}? Any walkover matches caused by this pairing must be reset manually.`)) return;
+    try {
+      await api.unmergeTeam(p.id);
+      flash(`Un-paired ${p.name}.`);
+      await onChange();
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  return (
+    <section className="card p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="font-display text-lg font-semibold text-ink-800">Student pairs (2v2)</h3>
+          <p className="text-sm text-ink-500">
+            For students playing without a parent. Their partner's pending match becomes an automatic walkover.
+          </p>
+        </div>
+        <button onClick={() => setOpen(true)} className="btn-primary text-sm">
+          Pair two students
+        </button>
+      </div>
+
+      {pairs.length > 0 ? (
+        <div className="mt-4 grid sm:grid-cols-2 gap-3">
+          {pairs.map((p) => (
+            <div
+              key={p.id}
+              className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 flex items-center justify-between gap-2"
+            >
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-ink-800 truncate">{p.name}</div>
+                <div className="text-[11px] text-ink-500">
+                  + {p.teammate}
+                </div>
+                <div className="text-[11px] text-ink-500">{p.id} · {p.grade} · {p.tier}</div>
+              </div>
+              <button onClick={() => unpair(p)} className="btn-ghost text-xs text-red-600 hover:bg-red-50 shrink-0">
+                Un-pair
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-3 text-sm text-ink-400 italic">No student pairs yet.</div>
+      )}
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 p-4">
+          <div className="card max-w-lg w-full p-6">
+            <h3 className="font-display text-lg font-semibold text-ink-800">Pair two students</h3>
+            <p className="mt-2 text-sm text-ink-500">
+              Pick the captain (whose bracket slot the team will keep) and the partner (whose slot becomes a walkover for their opponent).
+            </p>
+            <div className="mt-4 grid sm:grid-cols-2 gap-3">
+              <Field label="Captain (keeps bracket slot)">
+                <select className="input" value={captainId} onChange={(e) => setCaptainId(e.target.value)}>
+                  <option value="">— pick a player —</option>
+                  {eligible.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.grade})</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Partner (will be merged in)">
+                <select className="input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
+                  <option value="">— pick a player —</option>
+                  {eligible.filter((p) => p.id !== captainId).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.grade})</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            {err && <div className="mt-3 text-sm text-red-600">{err}</div>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => { setOpen(false); setErr(null); }} className="btn-ghost" disabled={busy}>Cancel</button>
+              <button onClick={submit} className="btn-primary" disabled={busy || !captainId || !partnerId}>
+                {busy ? 'Pairing…' : 'Pair them'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -85,6 +85,18 @@ Admin (cookie auth):
 - `POST /api/admin/settings` — full settings object
 - `POST /api/admin/reset` — clears every score & winner
 
+## 2v2 teams (FC26 multiplayer mode)
+
+Every bracket entry is a 2-player team. By default the team is **(student + their parent)** — the parent's name comes straight from the registration form. When a student shows up without a parent, the admin can **pair two students together** so they play 2v2 as a team.
+
+To pair: **/admin → Roster → Pair two students** → pick the captain and the partner → confirm. What happens:
+
+- The captain keeps their bracket slot. Display now shows "Captain Name + Partner Name (G5)" everywhere — bracket cards, schedule rows, players page.
+- The partner is marked `withdrawn` and `mergedInto: <captainId>`. They disappear from public lists.
+- Any pending match where the partner was a direct entrant and their opponent is also a direct entrant becomes a **walkover** — opponent advances automatically. Downstream rounds recompute via the existing winner-propagation.
+
+You can **un-pair** them from the same screen. Note: walkover matches the pairing produced are *not* auto-reverted — the tournament may have moved on. Reset those manually in the Matches tab if needed.
+
 ## Live updates between admins
 
 Two admins editing simultaneously is fine — they don't need to coordinate manually. Every page (Home, Bracket, Schedule, Players, Admin) polls `/api/version` every 6 seconds and shows a sticky **"New tournament data available — Refresh now"** banner whenever the server has data newer than what the page loaded.
