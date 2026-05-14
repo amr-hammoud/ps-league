@@ -41,6 +41,10 @@
     { "id": "P30", "name": "Mazen Raad",                  "grade": "G6",  "tier": "T2", "parent": "Mohammed Raad",                   "contact": "0570343575" },
     { "id": "P31", "name": "Faisal Alabdulli",            "grade": "G7",  "tier": "T2", "parent": "Nashwah Zaydan",                  "contact": "0544466994" },
     { "id": "P32", "name": "Abdulaziz Mohammed bin Hashr","grade": "G7",  "tier": "T2", "parent": "Mohammed Naser bin Hashr",        "contact": "0566830570" },
-    { "id": "P33", "name": "Anwar Atiyah Shawk",          "grade": "G9",  "tier": "T3", "parent": "Atiyah Shawk",                    "contact": "0506614630" }
+    { "id": "P33", "name": "Anwar Atiyah Shawk",          "grade": "G9",  "tier": "T3", "parent": "Atiyah Shawk",                    "contact": "0506614630" },
+
+    { "id": "P34", "name": "Abdulaziz Mohammed Abdeen",   "grade": "G8",  "tier": "T2", "parent": "Mohammed Taysser Abdeen",         "contact": "0506109047", "pending": true },
+    { "id": "P35", "name": "Osama Abdelrahman Alkhatib",  "grade": "G11", "tier": "T3", "parent": "Abdelrahman Alkhatib",            "contact": "0568030521", "pending": true },
+    { "id": "P36", "name": "Ibrahim Ghaith Nabil Basheer Tabbalat", "grade": "G9", "tier": "T3", "parent": "Ghaith Nabil Basheer Tabbalat", "contact": "0582599729", "pending": true }
   ]
 }
