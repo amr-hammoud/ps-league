@@ -54,6 +54,11 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   generateBrackets: () => request('/api/admin/generate', { method: 'POST' }),
+  swapPlayers: (playerAId, playerBId) =>
+    request('/api/admin/swap', {
+      method: 'POST',
+      body: JSON.stringify({ playerAId, playerBId }),
+    }),
 
   mergeTeam: (captainId, partnerId) =>
     request('/api/admin/team/merge', {

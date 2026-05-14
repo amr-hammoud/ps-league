@@ -161,6 +161,8 @@ function TabButton({ active, onClick, children }) {
 }
 
 function MatchEditor({ bracket, onChange, flash }) {
+  const [swapOpen, setSwapOpen] = useState(false);
+
   const groups = [
     { label: 'Tier 1 — Play-ins',      rounds: /^PI-T1-/ },
     { label: 'Tier 2 — Play-ins',      rounds: /^PI-T2-/ },
@@ -176,6 +178,15 @@ function MatchEditor({ bracket, onChange, flash }) {
 
   return (
     <div className="space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-ink-500">
+          Tip: students can request to play each other — use <strong>Swap players</strong> to switch them between matches.
+        </p>
+        <button onClick={() => setSwapOpen(true)} className="btn-outline text-sm">
+          Swap players
+        </button>
+      </div>
+
       {groups.map((g) => {
         const items = bracket.matches.filter((m) => g.rounds.test(m.round));
         if (!items.length) return null;
@@ -190,6 +201,14 @@ function MatchEditor({ bracket, onChange, flash }) {
           </section>
         );
       })}
+
+      {swapOpen && (
+        <SwapDialog
+          bracket={bracket}
+          onClose={() => setSwapOpen(false)}
+          onSwapped={async () => { await onChange(); setSwapOpen(false); flash('Players swapped.'); }}
+        />
+      )}
     </div>
   );
 }
@@ -658,6 +677,123 @@ function PendingRow({ p, onChange, flash }) {
       <button onClick={remove} disabled={busy} className="btn-ghost text-xs text-red-600 hover:bg-red-50">
         Remove
       </button>
+    </div>
+  );
+}
+
+// Swap two players between their bracket slots. The 2v2 partner travels with
+// the captain because it's part of the player record (not the bracket).
+function SwapDialog({ bracket, onClose, onSwapped }) {
+  const [playerAId, setPlayerAId] = useState('');
+  const [playerBId, setPlayerBId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  // Build the eligible list from the bracket itself — only direct entries in
+  // matches that haven't started, plus the opponent label for context.
+  const eligible = (() => {
+    const out = [];
+    for (const m of bracket.matches) {
+      if (m.winner) continue;
+      if (m.scoreA != null || m.scoreB != null) continue;
+      if (m.status && m.status !== 'scheduled') continue;
+      const sides = [
+        { side: 'A', ref: m.playerA, resolved: m.resolvedA, opp: m.resolvedB },
+        { side: 'B', ref: m.playerB, resolved: m.resolvedB, opp: m.resolvedA },
+      ];
+      for (const s of sides) {
+        if (s.ref && s.ref.type === 'player' && s.resolved && s.resolved.id) {
+          out.push({
+            id: s.resolved.id,
+            name: s.resolved.name,
+            grade: s.resolved.grade,
+            partner: s.resolved.partner,
+            matchId: m.id,
+            round: m.round,
+            opp: s.opp,
+          });
+        }
+      }
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  })();
+
+  const slotA = eligible.find((e) => e.id === playerAId);
+  const slotB = eligible.find((e) => e.id === playerBId);
+
+  const submit = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.swapPlayers(playerAId, playerBId);
+      onSwapped();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 p-4">
+      <div className="card max-w-xl w-full p-6">
+        <h3 className="font-display text-lg font-semibold text-ink-800">Swap two players</h3>
+        <p className="mt-2 text-sm text-ink-500">
+          Pick two students currently waiting for their first match. They'll exchange bracket slots — their 2v2 partner travels with them.
+        </p>
+
+        <div className="mt-4 space-y-3">
+          <Field label="Player 1">
+            <select className="input" value={playerAId} onChange={(e) => setPlayerAId(e.target.value)}>
+              <option value="">— pick a player —</option>
+              {eligible.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.grade}) — {p.matchId} {p.round}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Player 2">
+            <select className="input" value={playerBId} onChange={(e) => setPlayerBId(e.target.value)}>
+              <option value="">— pick a player —</option>
+              {eligible.filter((p) => p.id !== playerAId).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.grade}) — {p.matchId} {p.round}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+
+        {slotA && slotB && (
+          <div className="mt-4 grid sm:grid-cols-2 gap-3">
+            <div className="rounded-xl border border-ink-100 bg-ink-50/50 p-3">
+              <div className="text-[11px] uppercase tracking-wider text-ink-500">Before</div>
+              <div className="mt-1 text-sm">
+                <div><strong className="text-ink-800">{slotA.matchId}</strong> · {slotA.round}: <span className="text-ink-700">{slotA.name}</span> vs {slotA.opp?.name || 'TBD'}</div>
+                <div className="mt-1"><strong className="text-ink-800">{slotB.matchId}</strong> · {slotB.round}: <span className="text-ink-700">{slotB.name}</span> vs {slotB.opp?.name || 'TBD'}</div>
+              </div>
+            </div>
+            <div className="rounded-xl border border-brand-200 bg-brand-50 p-3">
+              <div className="text-[11px] uppercase tracking-wider text-brand-700">After swap</div>
+              <div className="mt-1 text-sm">
+                <div><strong className="text-ink-800">{slotA.matchId}</strong> · {slotA.round}: <span className="text-brand-700 font-semibold">{slotB.name}</span> vs {slotA.opp?.name || 'TBD'}</div>
+                <div className="mt-1"><strong className="text-ink-800">{slotB.matchId}</strong> · {slotB.round}: <span className="text-brand-700 font-semibold">{slotA.name}</span> vs {slotB.opp?.name || 'TBD'}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {err && <div className="mt-3 text-sm text-red-600">{err}</div>}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={onClose} className="btn-ghost" disabled={busy}>Cancel</button>
+          <button onClick={submit} className="btn-primary" disabled={busy || !playerAId || !playerBId}>
+            {busy ? 'Swapping…' : 'Confirm swap'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

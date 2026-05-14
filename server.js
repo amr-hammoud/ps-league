@@ -489,6 +489,63 @@ app.patch('/api/admin/player/:id', requireAdmin, async (req, res) => {
   res.json({ ok: true, player: p });
 });
 
+// --- player swap -----------------------------------------------------------
+//
+// Swap two players between their direct bracket slots. Used when students
+// want to play different opponents than the default seeding. Safety rules:
+//   - both players must be direct entrants (`type: 'player'`) — not "winner
+//     of Mx" references, since those resolve dynamically;
+//   - both source matches must be `scheduled` (no winner, no scores entered,
+//     no special status like walkover/cancelled).
+// Their 2v2 partner (parent or teammate) is part of the player record, so it
+// travels with the captain automatically.
+
+function findDirectSlot(bracket, playerId) {
+  for (const m of bracket.matches) {
+    if (m.playerA && m.playerA.type === 'player' && m.playerA.id === playerId) {
+      return { match: m, side: 'playerA' };
+    }
+    if (m.playerB && m.playerB.type === 'player' && m.playerB.id === playerId) {
+      return { match: m, side: 'playerB' };
+    }
+  }
+  return null;
+}
+
+app.post('/api/admin/swap', requireAdmin, async (req, res) => {
+  const { playerAId, playerBId } = req.body || {};
+  if (!playerAId || !playerBId) return res.status(400).json({ error: 'playerAId and playerBId are required' });
+  if (playerAId === playerBId) return res.status(400).json({ error: 'Pick two different players' });
+
+  const bracket = await readJSON('bracket.json');
+  const slotA = findDirectSlot(bracket, playerAId);
+  const slotB = findDirectSlot(bracket, playerBId);
+
+  if (!slotA) return res.status(400).json({ error: `${playerAId} isn't in a direct bracket slot (they may have advanced past their first match).` });
+  if (!slotB) return res.status(400).json({ error: `${playerBId} isn't in a direct bracket slot.` });
+
+  for (const slot of [slotA, slotB]) {
+    const m = slot.match;
+    if (m.winner) return res.status(400).json({ error: `Match ${m.id} already has a winner — swap aborted.` });
+    if (m.scoreA != null || m.scoreB != null) return res.status(400).json({ error: `Match ${m.id} has scores entered — swap aborted.` });
+    if (m.status && m.status !== 'scheduled') return res.status(400).json({ error: `Match ${m.id} has status "${m.status}" — swap aborted.` });
+  }
+
+  const refA = slotA.match[slotA.side];
+  const refB = slotB.match[slotB.side];
+  slotA.match[slotA.side] = refB;
+  slotB.match[slotB.side] = refA;
+
+  await writeJSON('bracket.json', bracket);
+  res.json({
+    ok: true,
+    summary: [
+      { match: slotA.match.id, side: slotA.side, was: refA.id, now: refB.id },
+      { match: slotB.match.id, side: slotB.side, was: refB.id, now: refA.id },
+    ],
+  });
+});
+
 // --- 2v2 team merges -----------------------------------------------------
 //
 // Each bracket slot represents a 2-player team. By default the team is
